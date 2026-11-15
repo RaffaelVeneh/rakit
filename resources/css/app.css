@@ -1,0 +1,3287 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../views/app.blade.php';
+
+/* Safelist: some class strings are assembled at runtime rather than written out
+   literally (a rule weight chosen by a prop, a tone chosen by a record's state),
+   which a content scan cannot see. Every colour role stays addressable by name. */
+@source inline('bg-{sheet,sheet-2,sheet-3,ink,ink-2,ink-3,rule,rule-2,cyan,cyan-2,cyan-3,cyan-tint,red,red-2,red-tint,plot,plot-2,plot-3,line,line-2,chalk,chalk-2,chalk-3,lit,lit-2,lit-red}');
+@source inline('text-{sheet,sheet-2,sheet-3,ink,ink-2,ink-3,rule,rule-2,cyan,cyan-2,cyan-3,cyan-tint,red,red-2,red-tint,plot,plot-2,plot-3,line,line-2,chalk,chalk-2,chalk-3,lit,lit-2,lit-red}');
+@source inline('border-{sheet,sheet-2,sheet-3,ink,ink-2,ink-3,rule,rule-2,cyan,cyan-2,cyan-3,cyan-tint,red,red-2,red-tint,plot,plot-2,plot-3,line,line-2,chalk,chalk-2,chalk-3,lit,lit-2,lit-red}');
+
+/* ============================================================================
+   RAKIT — controlled document system
+   One language, two temperatures: the issued drawing sheet (light) and the
+   plotter field (dark). Line weight carries meaning. One chromatic accent
+   marks structure and action; one exception red marks rejection.
+   ========================================================================== */
+
+@theme {
+    /* --- Type ------------------------------------------------------------- */
+    --font-display: 'Saira', 'Archivo', ui-sans-serif, system-ui, sans-serif;
+    --font-sans: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'Roboto Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+    /* --- Sheet (light temperature) --------------------------------------- */
+    --color-sheet: #ffffff;
+    --color-sheet-2: #eff3f7;
+    --color-sheet-3: #dfe7ee;
+    --color-ink: #0c1622;
+    --color-ink-2: #46586b;
+    --color-ink-3: #5f7082;
+    --color-rule: #c9d3dd;
+    --color-rule-2: #9aaab9;
+
+    /* --- Cyanotype: structure and action --------------------------------- */
+    --color-cyan: #0e3a8f;
+    --color-cyan-2: #0a2a69;
+    --color-cyan-3: #06204f;
+    --color-cyan-tint: #dce5f6;
+
+    /* --- Exception ------------------------------------------------------- */
+    --color-red: #c42b14;
+    --color-red-2: #9c2110;
+    --color-red-tint: #fbe4df;
+
+    /* --- Plot (dark temperature) ----------------------------------------- */
+    --color-plot: #080d13;
+    --color-plot-2: #0f1821;
+    --color-plot-3: #16212c;
+    --color-line: #22303d;
+    --color-line-2: #35485a;
+    --color-chalk: #dee6ee;
+    --color-chalk-2: #98a9ba;
+    --color-chalk-3: #7c8ea1;
+    --color-lit: #7aa2ff;
+    --color-lit-2: #a8c2ff;
+    --color-lit-red: #ff7a5c;
+    --color-lit-red-2: #e0644a;
+
+    /* --- Geometry: machined, no soft corners ------------------------------ */
+    --radius-none: 0px;
+    --radius-tick: 1px;
+    --radius-mark: 2px;
+
+    /* --- Motion: exponential ease-out, from an already-visible default ---- */
+    --ease-plot: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-cut: cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+/* ============================================================================
+   Base — the sheet's own surfaces, themed from the palette
+   ========================================================================== */
+
+@layer base {
+    html {
+        -webkit-text-size-adjust: 100%;
+        /* A guard, not a layout tool. Nothing in the sheet is meant to be reached
+           by panning sideways at phone width; where a wide register genuinely
+           needs it, the register frame scrolls on its own. `clip` rather than
+           `hidden` so the document does not become a scroll container and the
+           sticky headers keep resolving against the viewport. */
+        overflow-x: clip;
+    }
+
+    body {
+        font-family: var(--font-sans);
+        font-synthesis-weight: none;
+        text-rendering: optimizeLegibility;
+    }
+
+    /* Numbers are evidence: they line up or they are decoration. */
+    table,
+    [data-measure] {
+        font-variant-numeric: tabular-nums;
+    }
+
+    ::selection {
+        background: var(--color-cyan);
+        color: var(--color-sheet);
+    }
+
+    :root {
+        caret-color: var(--color-cyan);
+        accent-color: var(--color-cyan);
+    }
+
+    /* The focus ring is part of the drawing: a crisp 2px mark, never a glow. */
+    :focus-visible {
+        outline: 2px solid var(--color-cyan);
+        outline-offset: 2px;
+    }
+
+    a {
+        text-underline-offset: 0.2em;
+        text-decoration-thickness: 1px;
+    }
+
+    /* --- Scrollbar: a rule riding in a drawn channel ----------------------
+    
+       The parts you did not draw still carry the design, and the scrollbar is the
+       one control the browser draws for you. Here it is a hairline thumb inside a
+       recessed track: the track is the sheet's second tone, the thumb is the
+       mid-weight rule, and it darkens to ink under the pointer. Square, like
+       everything else — Firefox gets `scrollbar-width`/`-color`, WebKit gets the
+       pseudo-elements below, and both resolve from the same two tokens, so the
+       whole thing re-tempers with the surface it belongs to. */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-rule-2) var(--color-sheet-2);
+    }
+
+    ::-webkit-scrollbar {
+        width: 12px;
+        height: 12px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: var(--color-sheet-2);
+        border-left: 1px solid var(--color-rule);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: var(--color-rule-2);
+        border: 4px solid transparent;
+        background-clip: padding-box;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--color-cyan);
+        background-clip: padding-box;
+    }
+
+    ::-webkit-scrollbar-thumb:active {
+        background: var(--color-cyan-2);
+        background-clip: padding-box;
+    }
+
+    ::-webkit-scrollbar-corner {
+        background: var(--color-sheet-2);
+    }
+
+    /* Dragging a scrollbar is a drag: the instrument says so. */
+    .has-instrument ::-webkit-scrollbar-thumb {
+        cursor: none;
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+
+    /* A register is wider than a phone. The table inside `.register` carries a
+       min-width and scrolls inside its own frame, but a grid track sizes itself
+       to its item's min-content by default, so the table's min-width propagates
+       outward and the whole page gains a horizontal scrollbar. Zeroing the
+       automatic minimum on grid items keeps the overflow inside the frame that
+       was already given a home for it. */
+    .grid > * {
+        min-width: 0;
+    }
+
+    :root[data-motion='reduced'] {
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+        }
+    }
+}
+
+/* ============================================================================
+   Components — the world's recurring devices
+   ========================================================================== */
+
+@layer components {
+    /* --- Sheet & plot fields --------------------------------------------- */
+    .sheet {
+        background: var(--color-sheet);
+        color: var(--color-ink);
+    }
+
+    .plot {
+        background: var(--color-plot);
+        color: var(--color-chalk);
+        caret-color: var(--color-lit);
+        accent-color: var(--color-lit);
+
+        /* The second temperature inverts the sheet's own names.
+           Every device written against --color-ink / --color-rule / --color-sheet /
+           --color-cyan / --color-red therefore re-tempers itself inside a plot
+           surface, with no per-component override and no per-page token remap.
+           Without this, a shared control that only knows the sheet temperature
+           (Pager's inactive ink, EmptyState's panel, StatusLamp's label) lands on
+           the dark ground at roughly 2.7:1 and reads as broken. */
+        --color-sheet: var(--color-plot-2);
+        --color-sheet-2: var(--color-plot-3);
+        --color-sheet-3: var(--color-plot-3);
+        --color-ink: var(--color-chalk);
+        --color-ink-2: var(--color-chalk-2);
+        --color-ink-3: var(--color-chalk-3);
+        --color-rule: var(--color-line);
+        --color-rule-2: var(--color-line-2);
+        --color-cyan: var(--color-lit);
+        --color-cyan-2: var(--color-lit-2);
+        --color-cyan-3: var(--color-lit-2);
+        --color-cyan-tint: var(--color-plot-3);
+        --color-red: var(--color-lit-red);
+        --color-red-2: var(--color-lit-red-2);
+        --color-red-tint: var(--color-plot-3);
+    }
+
+    /* ------------------------------------------------------------------
+       The dark theme is the plot temperature, lifted to the document root.
+
+       Nothing new is invented here: the same five names are re-pointed, in the
+       same direction, as inside .plot. Because every device in the sheet is
+       written against --color-sheet / --color-ink / --color-rule / --color-cyan /
+       --color-red, flipping those at the root re-tempers the entire application —
+       storefront included — without one component knowing a theme exists.
+       ------------------------------------------------------------------ */
+    :root[data-theme='plot'] {
+        color-scheme: dark;
+        --color-sheet: #0f1821;
+        --color-sheet-2: #16212c;
+        --color-sheet-3: #1c2836;
+        --color-ink: #dee6ee;
+        --color-ink-2: #98a9ba;
+        --color-ink-3: #7c8ea1;
+        --color-rule: #22303d;
+        --color-rule-2: #35485a;
+        --color-cyan: #7aa2ff;
+        --color-cyan-2: #a8c2ff;
+        --color-cyan-3: #a8c2ff;
+        --color-cyan-tint: #16212c;
+        --color-red: #ff7a5c;
+        --color-red-2: #e0644a;
+        --color-red-tint: #16212c;
+    }
+
+    /* ------------------------------------------------------------------
+       The plot palette in the light temperature.
+
+       Module sheets and the operator console were always drawn on `.plot`
+       surfaces; that class used to mean "dark", independent of the reader's
+       choice. The tokens are the same five names in the other direction, so
+       re-pointing the *plot* palette at the root lets every `.plot`, `bg-plot`,
+       `text-chalk`, `border-line` and `.plot` semantic alias re-temper without
+       touching a single page. The dark palette remains in the dark theme.
+       ------------------------------------------------------------------ */
+    :root[data-theme='sheet'] {
+        color-scheme: light;
+        --color-plot: #ffffff;
+        --color-plot-2: #f2f6fa;
+        --color-plot-3: #e7eef6;
+        --color-line: #c9d3dd;
+        --color-line-2: #9aaab9;
+        --color-chalk: #0c1622;
+        --color-chalk-2: #46586b;
+        --color-chalk-3: #5f7082;
+        --color-lit: #0e3a8f;
+        --color-lit-2: #0a2a69;
+        --color-lit-red: #c42b14;
+        --color-lit-red-2: #9c2110;
+    }
+
+    :root[data-theme='plot'] ::selection {
+        background: var(--color-lit);
+        color: var(--color-plot);
+    }
+
+    :root[data-theme='plot'] :focus-visible {
+        outline-color: var(--color-lit);
+    }
+
+    .plot ::selection {
+        background: var(--color-lit);
+        color: var(--color-plot);
+    }
+
+    .plot :focus-visible {
+        outline-color: var(--color-lit);
+    }
+
+    /* The scrollbar needs no plot override: it is written against --color-rule-2,
+       --color-sheet-2 and --color-cyan, and the retint above re-points all three
+       for this surface. Removing the per-temperature duplication is what let the
+       dark theme be a root-level retint rather than a second set of rules. */
+
+    /* --- Line weights: the system's primary hierarchy device -------------- */
+    .hair {
+        border-color: var(--color-rule);
+    }
+    .med {
+        border-color: var(--color-rule-2);
+    }
+    .heavy {
+        border-color: var(--color-ink);
+    }
+
+    /* --- Zone frame: the sheet's drawn edge -------------------------------
+       The frame is a heavy rule around a sheet. The ruler that names zones is not
+       drawn as a separate band: the register's numbered column heads are it (see
+       Register.jsx), which puts the coordinate where it is actually read. */
+    .zone-frame {
+        position: relative;
+        border: 1px solid var(--color-ink);
+    }
+
+    /* --- Title block ------------------------------------------------------ */
+    .title-block {
+        border: 1px solid var(--color-ink);
+        background: var(--color-sheet);
+    }
+
+    .title-block__cell {
+        border-right: 1px solid var(--color-rule);
+        border-bottom: 1px solid var(--color-rule);
+        padding: 6px 10px;
+    }
+
+    .title-block__label {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--color-ink-3);
+        display: block;
+    }
+
+    .title-block__value {
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: 12px;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: var(--color-ink);
+        display: block;
+        margin-top: 2px;
+    }
+
+    /* --- Data table: ruled, dense, no zebra stripes ----------------------- */
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .data-table thead th {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--color-ink-3);
+        text-align: left;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--color-ink);
+        white-space: nowrap;
+    }
+
+    .data-table tbody td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--color-rule);
+        font-size: 13px;
+        vertical-align: middle;
+    }
+
+    .data-table tbody tr:hover {
+        background: var(--color-sheet-2);
+    }
+
+    .data-table .num {
+        text-align: right;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .plot .data-table thead th {
+        color: var(--color-chalk-2);
+        border-bottom-color: var(--color-chalk-2);
+    }
+
+    .plot .data-table tbody td {
+        border-bottom-color: var(--color-line);
+    }
+
+    .plot .data-table tbody tr:hover {
+        background: var(--color-plot-3);
+    }
+
+    /* --- Status lamp: lit / unlit, never a coloured pill ------------------ */
+    .lamp {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border: 1px solid currentColor;
+        flex: none;
+    }
+
+    .lamp--lit {
+        background: currentColor;
+    }
+
+    .lamp--half {
+        background: linear-gradient(
+            to right,
+            currentColor 0 50%,
+            transparent 50% 100%
+        );
+    }
+
+    /* --- Stamp: the primary action --------------------------------------- */
+    .stamp {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        overflow: hidden;
+        padding: 11px 18px;
+        background: var(--color-cyan);
+        color: var(--color-sheet);
+        border: 1px solid var(--color-cyan);
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition:
+            background 120ms var(--ease-cut),
+            transform 120ms var(--ease-cut);
+    }
+
+    /* A light pass across the stamp when the pointer is on it. The sheet is still
+       flat; this is a reflection moving over a pressed surface, not a gloss. */
+    .stamp::after {
+        content: '';
+        position: absolute;
+        top: -60%;
+        bottom: -60%;
+        left: -30%;
+        width: 28%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+        transform: translateX(-160%) skewX(-20deg);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    @media (hover: hover) {
+        .stamp:hover::after {
+            opacity: 1;
+            animation: stamp-sheen 720ms var(--ease-plot);
+        }
+    }
+
+    @keyframes stamp-sheen {
+        from {
+            transform: translateX(-160%) skewX(-20deg);
+        }
+        to {
+            transform: translateX(520%) skewX(-20deg);
+        }
+    }
+
+    .stamp:hover {
+        background: var(--color-cyan-2);
+        border-color: var(--color-cyan-2);
+    }
+
+    .stamp:active {
+        background: var(--color-cyan-3);
+        border-color: var(--color-cyan-3);
+        transform: translateY(1px);
+    }
+
+    .stamp:disabled,
+    .stamp[aria-disabled='true'] {
+        cursor: not-allowed;
+        background: var(--color-sheet-3);
+        border-color: var(--color-rule-2);
+        /* Ink-secondary, not annotation ink: on the disabled field ground the
+           annotation step measures 4.07:1, under the AA floor for a 10px label.
+           This one measures 5.7:1, and in the plot temperature it retints to
+           chalk-secondary on plot-raised, 6.9:1. */
+        color: var(--color-ink-2);
+    }
+
+    .stamp:disabled::after,
+    .stamp[aria-disabled='true']::after {
+        display: none;
+    }
+
+    /* --- Counter-stamp: the secondary action ------------------------------ */
+    .stamp-2 {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        overflow: hidden;
+        padding: 10px 16px;
+        background: transparent;
+        color: var(--color-ink);
+        border: 1px solid var(--color-ink);
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition:
+            background 120ms var(--ease-cut),
+            color 120ms var(--ease-cut),
+            transform 120ms var(--ease-cut);
+    }
+
+    .stamp-2::after {
+        content: '';
+        position: absolute;
+        top: -60%;
+        bottom: -60%;
+        left: -30%;
+        width: 28%;
+        background: linear-gradient(90deg, transparent, rgba(122, 162, 255, 0.3), transparent);
+        transform: translateX(-160%) skewX(-20deg);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    @media (hover: hover) {
+        .stamp-2:hover::after {
+            opacity: 1;
+            animation: stamp-sheen 720ms var(--ease-plot);
+        }
+    }
+
+    .stamp-2:hover {
+        background: var(--color-ink);
+        color: var(--color-sheet);
+    }
+
+    .stamp-2:active {
+        transform: translateY(1px);
+    }
+
+    .stamp-2:disabled {
+        cursor: not-allowed;
+        border-color: var(--color-rule);
+        color: var(--color-ink-3);
+        background: transparent;
+    }
+
+    /* --- Destructive: the exception ---------------------------------------
+       Defined after .stamp-2 and carrying its own hover/active/disabled states,
+       because a bare `.stamp--red` loses every one of those to `.stamp:hover` and
+       the destructive action ends up looking like the primary one. */
+    .stamp--red {
+        background: var(--color-red);
+        border-color: var(--color-red);
+        color: var(--color-sheet);
+    }
+
+    .stamp--red:hover {
+        background: var(--color-red-2);
+        border-color: var(--color-red-2);
+    }
+
+    .stamp--red:active {
+        background: var(--color-red-2);
+        border-color: var(--color-red-2);
+        transform: translateY(1px);
+    }
+
+    .stamp--red:disabled,
+    .stamp--red[aria-disabled='true'] {
+        cursor: not-allowed;
+        background: var(--color-sheet-3);
+        border-color: var(--color-rule-2);
+        color: var(--color-ink-2);
+    }
+
+    /* The quiet exception: a destructive action that must be present in every row
+       of a register without shouting over the row's real content. It carries the
+       exception colour as an outline until it is pointed at, then fills. */
+    .stamp--red-quiet {
+        background: transparent;
+        color: var(--color-red);
+        border-color: var(--color-red);
+    }
+
+    .stamp--red-quiet:hover {
+        background: var(--color-red);
+        border-color: var(--color-red);
+        color: var(--color-sheet);
+    }
+
+    .stamp--red-quiet:active {
+        background: var(--color-red-2);
+        border-color: var(--color-red-2);
+        color: var(--color-sheet);
+        transform: translateY(1px);
+    }
+
+    .stamp--red-quiet:disabled,
+    .stamp--red-quiet[aria-disabled='true'] {
+        cursor: not-allowed;
+        background: transparent;
+        border-color: var(--color-rule-2);
+        color: var(--color-ink-2);
+    }
+
+    /* --- Field: input ------------------------------------------------------ */
+    .field {
+        width: 100%;
+        background: var(--color-sheet);
+        border: 1px solid var(--color-rule-2);
+        color: var(--color-ink);
+        padding: 10px 12px;
+        font-size: 13px;
+        font-family: var(--font-sans);
+        transition: border-color 120ms var(--ease-cut);
+    }
+
+    .field::placeholder {
+        color: var(--color-ink-3);
+    }
+
+    .field:hover {
+        border-color: var(--color-ink-3);
+    }
+
+    .field:focus {
+        outline: none;
+        border-color: var(--color-cyan);
+        box-shadow: inset 0 0 0 1px var(--color-cyan);
+    }
+
+    .field:disabled {
+        background: var(--color-sheet-3);
+        color: var(--color-ink-3);
+        cursor: not-allowed;
+    }
+
+    /* No .plot rules for the field at all.
+       `.plot .field` ties on specificity with `.field:disabled`, `.field:focus`
+       and `.field::placeholder` and, sitting later in the file, quietly wins: a
+       disabled field would keep its enabled ground and a focused one lose its
+       lit border. The token retint above re-tempers every one of those states
+       correctly, so the base rules below are the only rules. */
+
+    /* --- Range: the last round control in a square world ------------------ */
+    input[type='range'] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 20px;
+        background: transparent;
+    }
+
+    input[type='range']::-webkit-slider-runnable-track {
+        height: 2px;
+        background: var(--color-rule-2);
+    }
+
+    input[type='range']::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 12px;
+        height: 12px;
+        margin-top: -5px;
+        border-radius: 0;
+        background: var(--color-cyan);
+        cursor: pointer;
+    }
+
+    input[type='range']::-moz-range-track {
+        height: 2px;
+        background: var(--color-rule-2);
+    }
+
+    input[type='range']::-moz-range-thumb {
+        width: 12px;
+        height: 12px;
+        border: 0;
+        border-radius: 0;
+        background: var(--color-cyan);
+        cursor: pointer;
+    }
+
+    /* --- Not applicable: the drafting hatch ------------------------------- */
+    .hatch {
+        background-image: repeating-linear-gradient(
+            45deg,
+            transparent 0 5px,
+            var(--color-rule) 5px 6px
+        );
+    }
+
+    .plot .hatch {
+        background-image: repeating-linear-gradient(
+            45deg,
+            transparent 0 5px,
+            var(--color-line-2) 5px 6px
+        );
+    }
+
+    /* --- Dimension string: a measured span -------------------------------- */
+    .dim {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--color-ink-3);
+    }
+
+    .dim__tick {
+        width: 1px;
+        height: 9px;
+        background: currentColor;
+        flex: none;
+    }
+
+    .dim__line {
+        height: 1px;
+        background: currentColor;
+        flex: 1 1 auto;
+        min-width: 8px;
+    }
+
+    .dim__label {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .plot .dim {
+        color: var(--color-chalk-2);
+    }
+
+    /* --- Leader callout: an annotation pinned to a part -------------------- */
+    .callout {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        padding: 5px 0;
+        border-bottom: 1px dotted var(--color-rule-2);
+    }
+
+    .callout__key {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--color-ink-3);
+        flex: none;
+        min-width: 9ch;
+    }
+
+    .callout__val {
+        font-size: 12px;
+        color: var(--color-ink);
+        font-weight: 500;
+    }
+
+    .plot .callout {
+        border-bottom-color: var(--color-line-2);
+    }
+
+    .plot .callout__key {
+        color: var(--color-chalk-2);
+    }
+
+    .plot .callout__val {
+        color: var(--color-chalk);
+    }
+
+    /* --- Part number ------------------------------------------------------- */
+    .part-no {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        color: var(--color-ink-3);
+        text-transform: uppercase;
+        /* A part number is an identifier. Broken across two lines it stops being
+           comparable down a column, which is the register's whole point. */
+        white-space: nowrap;
+    }
+
+    .plot .part-no {
+        color: var(--color-chalk-2);
+    }
+
+    /* --- Section head: rule above, label inside, no eyebrow --------------- */
+    .section-head {
+        --section-rule: var(--color-ink);
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid var(--section-rule);
+        padding-bottom: 8px;
+    }
+
+    .section-head__title {
+        font-family: var(--font-display);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: -0.01em;
+        font-size: 20px;
+        line-height: 1.1;
+        color: var(--color-ink);
+        text-wrap: balance;
+    }
+
+    .plot .section-head {
+        --section-rule: var(--color-chalk-2);
+    }
+
+    .plot .section-head__title {
+        color: var(--color-chalk);
+    }
+
+    /* The one authored moment: the spine of the sheet is drawn, once, from the
+       left, the way a plotter lays down a rule. Reserved for a single section
+       per sheet; repeating it on every section is the scattered effect the
+       floor refuses. */
+    .section-head--drawn {
+        position: relative;
+        border-bottom-color: transparent;
+    }
+
+    .section-head--drawn::after {
+        content: '';
+        position: absolute;
+        inset-inline: 0;
+        bottom: -1px;
+        height: 1px;
+        background: var(--section-rule);
+        transform-origin: left center;
+        animation: plot-draw 760ms var(--ease-plot) both;
+    }
+
+    :root[data-motion='reduced'] {
+        .section-head--drawn::after {
+            animation: none !important;
+            transform: none !important;
+        }
+    }
+
+    /* --- Plate: a figure frame for imagery -------------------------------- */
+    .plate {
+        position: relative;
+        border: 1px solid var(--color-ink);
+        background: var(--color-sheet-2);
+    }
+
+    .plate__tab {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 2;
+        background: var(--color-ink);
+        color: var(--color-sheet);
+        font-family: var(--font-mono);
+        font-size: 9px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        padding: 3px 7px;
+    }
+
+    .plot .plate {
+        border-color: var(--color-line-2);
+        background: var(--color-plot-2);
+    }
+
+    .plot .plate__tab {
+        background: var(--color-chalk);
+        color: var(--color-plot);
+    }
+
+    /* --- Table frame for scrolling registers ------------------------------
+       `contain: paint` is load-bearing, not tidiness. A register holds a table
+       with a min-width whose layout overflow did not stay put: a 390px phone
+       measured `window.innerWidth` 757 on the console dashboard, because Chrome
+       expands the layout viewport to fit content that overflows, and a widened
+       layout viewport is a zoomed-out page. `overflow-x: auto` alone did not stop
+       it, and neither did `contain: inline-size` (measured: 757 for both). Paint
+       containment clips the subtree out of the ancestor overflow chain, which
+       both settles the viewport at 390 and keeps the horizontal scroll exactly
+       where the frame was built to put it. */
+    .register {
+        border: 1px solid var(--color-ink);
+        contain: paint;
+    }
+
+    .plot .register {
+        border-color: var(--color-line-2);
+    }
+
+    /* --- Notice: the one object that genuinely floats --------------------- */
+    .rkt-toast-container {
+        padding: 12px;
+        z-index: 9999;
+    }
+
+    .rkt-toast {
+        width: auto;
+        max-width: min(24rem, calc(100vw - 24px));
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        border-radius: 0;
+        box-shadow: 0 6px 18px -8px rgb(12 22 34 / 0.45);
+        overflow: hidden;
+    }
+
+    .rkt-toast .swal2-html-container {
+        margin: 0;
+        padding: 0;
+        overflow: visible;
+    }
+
+    .rkt-toast .swal2-timer-progress-bar-container {
+        border-radius: 0;
+    }
+
+    .rkt-toast__bar {
+        background: var(--color-cyan);
+    }
+
+    .rkt-notice {
+        display: flex;
+        align-items: stretch;
+        border: 1px solid var(--color-ink);
+        background: var(--color-sheet);
+        text-align: left;
+    }
+
+    .rkt-notice__mark {
+        width: 4px;
+        flex: none;
+    }
+
+    .rkt-notice__body {
+        display: block;
+        padding: 10px 14px 11px;
+    }
+
+    .rkt-notice__label {
+        display: block;
+        font-family: var(--font-mono);
+        font-size: 9px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--color-ink-3);
+    }
+
+    .rkt-notice__title {
+        display: block;
+        margin-top: 3px;
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: 13px;
+        letter-spacing: 0.01em;
+        color: var(--color-ink);
+    }
+
+    .rkt-notice__text {
+        display: block;
+        margin-top: 3px;
+        max-width: 34ch;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--color-ink-2);
+    }
+
+}
+
+/* ============================================================================
+   Motion
+   Five named moments, each with a job. They are deliberately not one entrance
+   repeated everywhere: a sheet is plotted, a figure is measured, a link snaps
+   under the instrument, a section settles once as it arrives, and a navigation
+   wipes the old sheet away. Anything that is only decoration is not here.
+   ========================================================================== */
+
+@layer components {
+    /* --- 1. Plot: the sheet's own rules are drawn, once ---------------- */
+    @keyframes plot-draw {
+        from {
+            transform: scaleX(0);
+        }
+        to {
+            transform: scaleX(1);
+        }
+    }
+
+    @keyframes plot-draw-y {
+        from {
+            transform: scaleY(0);
+        }
+        to {
+            transform: scaleY(1);
+        }
+    }
+
+    @keyframes plot-fade {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes plot-rise {
+        from {
+            opacity: 0;
+            transform: translate3d(0, 14px, 0);
+        }
+        to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+        }
+    }
+
+    .plot-in {
+        transform-origin: left center;
+        animation: plot-draw 760ms var(--ease-plot) both;
+    }
+
+    .plot-in-y {
+        transform-origin: center top;
+        animation: plot-draw-y 620ms var(--ease-plot) both;
+    }
+
+    .rise-in {
+        animation: plot-rise 620ms var(--ease-plot) both;
+    }
+
+    .fade-in {
+        animation: plot-fade 900ms var(--ease-plot) both;
+    }
+
+    /* --- 2. Settle: a section arrives once, when it is reached --------- */
+    /* Opt in with data-reveal. The observer adds .is-settled and removes the
+       attribute's hold; without JS or without IntersectionObserver the element
+       is simply visible, because the default state is the finished one. */
+    .reveal-armed {
+        opacity: 0;
+        transform: translate3d(0, 18px, 0);
+    }
+
+    .reveal-armed.is-settled {
+        opacity: 1;
+        transform: none;
+        transition:
+            opacity 700ms var(--ease-plot),
+            transform 700ms var(--ease-plot);
+        transition-delay: var(--reveal-delay, 0ms);
+    }
+
+    /* --- 3. Measure: a dimension string extends to its reading --------- */
+    @keyframes measure-out {
+        from {
+            transform: scaleX(0);
+            opacity: 0;
+        }
+        40% {
+            opacity: 1;
+        }
+        to {
+            transform: scaleX(1);
+            opacity: 1;
+        }
+    }
+
+    .measure-in {
+        transform-origin: left center;
+        animation: measure-out 620ms var(--ease-plot) both;
+    }
+
+    /* --- 4. Navigation: the old sheet is wiped away, the new one plotted */
+    @keyframes sheet-wipe {
+        from {
+            transform: scaleX(0);
+        }
+        to {
+            transform: scaleX(1);
+        }
+    }
+
+    .sheet-wipe {
+        position: fixed;
+        inset-inline: 0;
+        top: 0;
+        height: 2px;
+        z-index: 90;
+        transform-origin: left center;
+        background: var(--color-cyan);
+        animation: sheet-wipe 700ms var(--ease-cut) both;
+        pointer-events: none;
+    }
+
+    /* --- The route loader ------------------------------------------------ */
+
+    /* Inertia draws this while a visit is in flight. Kept, because a rule that
+       grows is exactly what this world uses for work in progress — but stripped of
+       NProgress's glow and its gradient tail, which belong to a different system.
+       What is left is a 2px rule with a square head, the same weight as every other
+       rule on the sheet, and it re-tempers with the surface it crosses. */
+    #nprogress {
+        pointer-events: none;
+    }
+
+    #nprogress .bar {
+        position: fixed;
+        z-index: 96;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: var(--color-cyan);
+    }
+
+    #nprogress .peg {
+        position: absolute;
+        right: 0;
+        display: block;
+        width: 12px;
+        height: 6px;
+        transform: translateY(-2px);
+        background: var(--color-cyan);
+        box-shadow: none;
+        opacity: 1;
+    }
+
+    #nprogress .spinner {
+        display: none;
+    }
+
+    @keyframes loader-tick {
+        0%,
+        100% {
+            opacity: 0.25;
+        }
+
+        50% {
+            opacity: 1;
+        }
+    }
+
+    :root[data-motion='reduced'] {
+        #nprogress .peg {
+            display: none;
+        }
+    }
+
+    /* --- 5. Snap: hover on a plate or a register row ------------------- */
+    .snap-rule {
+        position: relative;
+    }
+
+    .snap-rule::after {
+        content: '';
+        position: absolute;
+        inset-inline: 0;
+        bottom: 0;
+        height: 1px;
+        background: currentColor;
+        transform: scaleX(0);
+        transform-origin: left center;
+        transition: transform 260ms var(--ease-plot);
+    }
+
+    .snap-rule:hover::after,
+    .snap-rule:focus-within::after {
+        transform: scaleX(1);
+    }
+
+    :root[data-motion='reduced'] {
+        .plot-in,
+        .plot-in-y,
+        .rise-in,
+        .fade-in,
+        .measure-in,
+        .sheet-wipe {
+            animation: none !important;
+            transform: none !important;
+            opacity: 1 !important;
+        }
+
+        .reveal-armed {
+            opacity: 1;
+            transform: none;
+        }
+
+        .snap-rule::after {
+            transition: none;
+        }
+    }
+}
+
+/* ============================================================================
+   KILAU — the shop's loud opening
+   ----------------------------------------------------------------------------
+   The sheet is still the sheet; this is the one stage allowed to shout. A
+   holographic cube built from six CSS faces, an aurora field, a receding grid
+   floor, and a marquee. Everything is compositor work: transforms and opacity,
+   no WebGL, no renderer, no new dependency.
+
+   The rules that keep it from fighting the rest of the system:
+   - every figure on the cube is read from the featured row, never invented;
+   - the dark ground is the plot temperature, so the accent still means the same
+     thing it means everywhere else;
+   - motion is the application's setting, so `data-motion="reduced"` parks the
+     cube and stops the marquee instead of merely speeding it up.
+   ========================================================================== */
+
+@layer components {
+    .kilau-hero {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        background:
+            radial-gradient(ellipse 80% 60% at 60% -10%, rgba(37, 79, 190, 0.3), transparent 65%),
+            radial-gradient(ellipse 60% 50% at 10% 100%, rgba(109, 40, 217, 0.2), transparent 70%),
+            #080d13;
+        color: #dee6ee;
+    }
+
+    .kilau-hero::before,
+    .kilau-hero::after {
+        content: '';
+        position: absolute;
+        z-index: 6;
+        inset-inline: 0;
+        height: 1px;
+        pointer-events: none;
+    }
+
+    .kilau-hero::before {
+        top: 0;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(122, 162, 255, 0.75),
+            rgba(167, 139, 250, 0.6),
+            transparent
+        );
+    }
+
+    .kilau-hero::after {
+        bottom: 0;
+        background: linear-gradient(90deg, transparent, rgba(122, 162, 255, 0.45), transparent);
+    }
+
+    /* The sheet's focus ring is cyanotype on a light ground; on this dark stage it
+       needs the lifted tone to stay visible. */
+    .kilau-hero :focus-visible {
+        outline-color: #a8c2ff;
+    }
+
+    .kilau-hero__bg {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+        pointer-events: none;
+    }
+
+    /* --- Aurora ---------------------------------------------------------- */
+
+    .kilau-blob {
+        position: absolute;
+        width: 46vw;
+        min-width: 340px;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        filter: blur(90px);
+        opacity: 0.55;
+        mix-blend-mode: screen;
+        animation: kilau-drift 22s ease-in-out infinite alternate;
+    }
+
+    .kilau-blob--a {
+        top: -18%;
+        left: -12%;
+        background: radial-gradient(circle, rgba(37, 99, 235, 0.85), transparent 68%);
+    }
+
+    .kilau-blob--b {
+        top: -4%;
+        right: -14%;
+        background: radial-gradient(circle, rgba(139, 92, 246, 0.72), transparent 68%);
+        animation-delay: -7s;
+        animation-duration: 28s;
+    }
+
+    .kilau-blob--c {
+        left: 26%;
+        bottom: -34%;
+        background: radial-gradient(circle, rgba(236, 72, 153, 0.4), transparent 68%);
+        animation-delay: -13s;
+        animation-duration: 25s;
+    }
+
+    /* --- The floor grid, receding toward the horizon --------------------- */
+
+    .kilau-grid {
+        position: absolute;
+        bottom: -14%;
+        left: -30%;
+        right: -30%;
+        height: 74%;
+        background-image:
+            linear-gradient(to right, rgba(122, 162, 255, 0.22) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(122, 162, 255, 0.22) 1px, transparent 1px);
+        background-size: 72px 72px;
+        transform: perspective(520px) rotateX(64deg);
+        transform-origin: center bottom;
+        -webkit-mask-image: linear-gradient(to top, #000 0%, rgba(0, 0, 0, 0.5) 42%, transparent 84%);
+        mask-image: linear-gradient(to top, #000 0%, rgba(0, 0, 0, 0.5) 42%, transparent 84%);
+        animation: kilau-grid-run 9s linear infinite;
+    }
+
+    .kilau-scan {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+            to bottom,
+            rgba(222, 230, 238, 0.045) 0 1px,
+            transparent 1px 4px
+        );
+        opacity: 0.28;
+    }
+
+    .kilau-particle {
+        position: absolute;
+        width: 3px;
+        height: 3px;
+        background: #a8c2ff;
+        box-shadow:
+            0 0 10px rgba(122, 162, 255, 0.95),
+            0 0 24px rgba(122, 162, 255, 0.45);
+        opacity: 0;
+        animation-name: kilau-particle-rise;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+    }
+
+    /* --- Type ------------------------------------------------------------ */
+
+    .kilau-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        padding: 7px 10px;
+        border: 1px solid rgba(122, 162, 255, 0.28);
+        background: rgba(9, 17, 30, 0.55);
+        color: #a8c2ff;
+        font-family: var(--font-mono);
+        font-size: 9px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+    }
+
+    .kilau-kicker__dot {
+        width: 5px;
+        height: 5px;
+        flex: none;
+        background: #7aa2ff;
+        animation: kilau-ping 2.2s ease-out infinite;
+    }
+
+    .kilau-title {
+        margin-top: 22px;
+        font-family: var(--font-display);
+        font-weight: 900;
+        line-height: 0.82;
+        letter-spacing: -0.035em;
+        text-transform: uppercase;
+    }
+
+    .kilau-title__line {
+        display: block;
+    }
+
+    .kilau-title__line:first-child {
+        color: #f2f6ff;
+        font-size: clamp(3.6rem, 9vw, 7.4rem);
+        text-shadow: 0 0 44px rgba(122, 162, 255, 0.22);
+    }
+
+    .kilau-title__line--glow {
+        font-size: clamp(3.6rem, 9vw, 7.4rem);
+        background: linear-gradient(
+            100deg,
+            #dee6ee 0%,
+            #7aa2ff 26%,
+            #a78bfa 52%,
+            #ff7ac8 80%,
+            #dee6ee 100%
+        );
+        background-size: 220% auto;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 28px rgba(102, 126, 255, 0.38));
+        animation: kilau-holo 8s linear infinite;
+    }
+
+    .kilau-title__line--outline {
+        margin-top: 0.2em;
+        color: transparent;
+        -webkit-text-stroke: 1px rgba(222, 230, 238, 0.72);
+        font-size: clamp(1.3rem, 3vw, 2.5rem);
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-shadow: 0 0 34px rgba(122, 162, 255, 0.2);
+    }
+
+    .kilau-glitch {
+        position: relative;
+    }
+
+    .kilau-glitch::before,
+    .kilau-glitch::after {
+        content: attr(data-text);
+        position: absolute;
+        inset: 0;
+        display: block;
+        background: none;
+        -webkit-text-fill-color: currentColor;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .kilau-glitch::before {
+        color: #7aa2ff;
+        clip-path: inset(10% 0 58% 0);
+        animation: kilau-glitch-a 5.6s steps(2, end) infinite;
+    }
+
+    .kilau-glitch::after {
+        color: #ff7ac8;
+        clip-path: inset(62% 0 12% 0);
+        animation: kilau-glitch-b 4.7s steps(2, end) infinite;
+    }
+
+    .kilau-lede {
+        margin-top: 24px;
+        max-width: 54ch;
+        color: #b9c7d8;
+        font-size: 13px;
+        line-height: 1.8;
+    }
+
+    /* --- Actions --------------------------------------------------------- */
+
+    .kilau-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        margin-top: 30px;
+    }
+
+    .kilau-cta {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        overflow: hidden;
+        padding: 15px 22px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        background: linear-gradient(100deg, #2563eb 0%, #6d5efc 55%, #b34dff 100%);
+        color: #ffffff;
+        font-family: var(--font-display);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        box-shadow:
+            0 12px 42px -14px rgba(77, 99, 255, 0.95),
+            inset 0 1px 0 rgba(255, 255, 255, 0.28);
+        will-change: transform;
+    }
+
+    .kilau-cta::before {
+        content: '';
+        position: absolute;
+        top: -60%;
+        bottom: -60%;
+        left: -50%;
+        width: 36%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+        transform: translateX(-120%) skewX(-20deg);
+        animation: kilau-sheen 4.4s ease-in-out infinite;
+    }
+
+    .kilau-cta:hover {
+        filter: brightness(1.14);
+    }
+
+    .kilau-cta:active {
+        filter: brightness(0.94);
+    }
+
+    .kilau-cta-2 {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        padding: 14px 18px;
+        border: 1px solid rgba(222, 230, 238, 0.22);
+        background: rgba(9, 17, 30, 0.5);
+        color: #dee6ee;
+        font-family: var(--font-display);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        transition:
+            border-color 200ms var(--ease-cut),
+            background 200ms var(--ease-cut),
+            color 200ms var(--ease-cut);
+    }
+
+    .kilau-cta-2:hover {
+        border-color: rgba(122, 162, 255, 0.72);
+        background: rgba(122, 162, 255, 0.12);
+        color: #ffffff;
+    }
+
+    .kilau-status {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 20px;
+        margin-top: 26px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(122, 162, 255, 0.18);
+        color: #8fa2b8;
+        font-family: var(--font-mono);
+        font-size: 9px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    .kilau-status__item {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .kilau-status__dot {
+        width: 4px;
+        height: 4px;
+        flex: none;
+        background: #7aa2ff;
+        box-shadow: 0 0 8px #7aa2ff;
+    }
+
+    /* --- The stage ------------------------------------------------------- */
+
+    .kilau-scene-wrap {
+        position: relative;
+        display: flex;
+        justify-content: center;
+    }
+
+    .kilau-scene {
+        --tilt-x: 0deg;
+        --tilt-y: 0deg;
+        --glow-x: 50%;
+        --glow-y: 50%;
+        position: relative;
+        width: 100%;
+        max-width: min(480px, 92vw);
+        aspect-ratio: 1;
+        perspective: 1200px;
+        perspective-origin: 50% 45%;
+    }
+
+    .holo-stage {
+        position: absolute;
+        inset: 0;
+        transform-style: preserve-3d;
+    }
+
+    .holo-stage__glow {
+        position: absolute;
+        inset: 8%;
+        border-radius: 50%;
+        background: radial-gradient(
+            circle at var(--glow-x) var(--glow-y),
+            rgba(88, 120, 255, 0.34),
+            rgba(139, 92, 246, 0.14) 42%,
+            transparent 68%
+        );
+        filter: blur(30px);
+        animation: holo-breathe 6s ease-in-out infinite;
+    }
+
+    .holo-stage__floor {
+        position: absolute;
+        left: 50%;
+        bottom: 3%;
+        width: 76%;
+        height: 22%;
+        background: radial-gradient(ellipse, rgba(96, 130, 255, 0.4), transparent 70%);
+        filter: blur(16px);
+        transform: translateX(-50%) rotateX(70deg);
+    }
+
+    /* --- The WebGL scene, layered over the CSS poster -------------------- */
+
+    .holo-webgl {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 800ms var(--ease-plot);
+        -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 48%, transparent 78%);
+        mask-image: radial-gradient(circle at 50% 50%, #000 48%, transparent 78%);
+    }
+
+    .holo-webgl.is-ready {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .holo-webgl__host {
+        position: absolute;
+        inset: 0;
+        touch-action: pan-y;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
+    .holo-webgl__canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+        cursor: grab;
+        touch-action: pan-y;
+    }
+
+    .holo-webgl__host.is-dragging .holo-webgl__canvas {
+        cursor: grabbing;
+    }
+
+    .holo-legacy {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        transition: opacity 650ms var(--ease-plot);
+    }
+
+    .holo-legacy.is-replaced {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+            opacity 650ms var(--ease-plot),
+            visibility 0s linear 700ms;
+    }
+
+    .holo-legacy.is-replaced * {
+        animation-play-state: paused;
+    }
+
+    .holo-bracket {
+        position: absolute;
+        z-index: 6;
+        width: 20px;
+        height: 20px;
+        border-color: rgba(122, 162, 255, 0.55);
+        border-style: solid;
+        pointer-events: none;
+    }
+
+    .holo-bracket--tl {
+        top: 0;
+        left: 0;
+        border-width: 1px 0 0 1px;
+    }
+
+    .holo-bracket--tr {
+        top: 0;
+        right: 0;
+        border-width: 1px 1px 0 0;
+    }
+
+    .holo-bracket--bl {
+        bottom: 0;
+        left: 0;
+        border-width: 0 0 1px 1px;
+    }
+
+    .holo-bracket--br {
+        right: 0;
+        bottom: 0;
+        border-width: 0 1px 1px 0;
+    }
+
+    .holo-hud {
+        position: absolute;
+        z-index: 7;
+        color: rgba(152, 169, 186, 0.85);
+        font-family: var(--font-mono);
+        font-size: 8px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        pointer-events: none;
+    }
+
+    .holo-hud--tl {
+        top: 8px;
+        left: 29px;
+    }
+
+    .holo-hud--tr {
+        top: 8px;
+        right: 29px;
+    }
+
+    .holo-hud--bl {
+        bottom: 8px;
+        left: 29px;
+    }
+
+    .holo-hud--br {
+        right: 29px;
+        bottom: 8px;
+    }
+
+    .holo-live {
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        margin-right: 5px;
+        background: #7aa2ff;
+        box-shadow: 0 0 10px #7aa2ff;
+        animation: holo-blink 1.7s ease-in-out infinite;
+    }
+
+    .holo-tilt {
+        position: absolute;
+        inset: 0;
+        transform-style: preserve-3d;
+        transform: rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+    }
+
+    /* --- The cube -------------------------------------------------------- */
+
+    .holo-cube {
+        --cube: clamp(200px, 19vw, 280px);
+        --half: calc(var(--cube) / 2);
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: var(--cube);
+        height: var(--cube);
+        margin: calc(var(--cube) / -2) 0 0 calc(var(--cube) / -2);
+        transform-style: preserve-3d;
+        animation: holo-spin 48s linear infinite;
+    }
+
+    .holo-face {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        border: 1px solid rgba(122, 162, 255, 0.55);
+        background: linear-gradient(150deg, rgba(16, 29, 52, 0.94), rgba(8, 13, 19, 0.9));
+        box-shadow:
+            inset 0 0 30px rgba(60, 110, 255, 0.25),
+            0 0 24px rgba(60, 110, 255, 0.12);
+        backface-visibility: hidden;
+    }
+
+    .holo-face::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(to right, rgba(122, 162, 255, 0.1) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(122, 162, 255, 0.1) 1px, transparent 1px);
+        background-size: 24px 24px;
+        opacity: 0.6;
+    }
+
+    .holo-face--front {
+        transform: translateZ(var(--half));
+    }
+
+    .holo-face--back {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        transform: rotateY(180deg) translateZ(var(--half));
+    }
+
+    .holo-face--right {
+        transform: rotateY(90deg) translateZ(var(--half));
+    }
+
+    .holo-face--left {
+        transform: rotateY(-90deg) translateZ(var(--half));
+    }
+
+    .holo-face--top {
+        transform: rotateX(90deg) translateZ(var(--half));
+    }
+
+    .holo-face--bottom {
+        transform: rotateX(-90deg) translateZ(var(--half));
+    }
+
+    .holo-face__photo {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 0.82;
+        filter: saturate(0.85) contrast(1.06);
+    }
+
+    .holo-face__shade {
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(180deg, rgba(8, 13, 19, 0.22) 0%, rgba(8, 13, 19, 0.35) 44%, rgba(8, 13, 19, 0.96) 100%),
+            linear-gradient(120deg, rgba(37, 99, 235, 0.4), transparent 58%);
+    }
+
+    .holo-face__grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(to right, rgba(168, 194, 255, 0.14) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(168, 194, 255, 0.14) 1px, transparent 1px);
+        background-size: 32px 32px;
+        mix-blend-mode: screen;
+        opacity: 0.35;
+    }
+
+    .holo-face__scan {
+        position: absolute;
+        inset-inline: 0;
+        top: -35%;
+        height: 35%;
+        background: linear-gradient(to bottom, transparent, rgba(122, 162, 255, 0.28), transparent);
+        mix-blend-mode: screen;
+        animation: holo-scan 4.8s linear infinite;
+    }
+
+    .holo-face__corner {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-color: #a8c2ff;
+        border-style: solid;
+        opacity: 0.85;
+    }
+
+    .holo-face__corner--a {
+        top: 7px;
+        right: 7px;
+        border-width: 1px 1px 0 0;
+    }
+
+    .holo-face__corner--b {
+        bottom: 7px;
+        left: 7px;
+        border-width: 0 0 1px 1px;
+    }
+
+    .holo-face__id {
+        position: absolute;
+        top: 9px;
+        left: 9px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .holo-face__k {
+        color: #7aa2ff;
+        font-family: var(--font-mono);
+        font-size: 7px;
+        letter-spacing: 0.2em;
+    }
+
+    .holo-face__v {
+        color: #dee6ee;
+        font-family: var(--font-mono);
+        font-size: 9px;
+        letter-spacing: 0.08em;
+    }
+
+    .holo-face__caption {
+        position: absolute;
+        inset-inline: 9px;
+        bottom: 9px;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .holo-face__name {
+        display: -webkit-box;
+        overflow: hidden;
+        color: #f2f6ff;
+        font-family: var(--font-display);
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.1;
+        text-transform: uppercase;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .holo-face__price {
+        color: #a8c2ff;
+        font-family: var(--font-mono);
+        font-size: 10px;
+    }
+
+    .holo-face__mark {
+        width: 54px;
+        height: 54px;
+        color: #7aa2ff;
+        filter: drop-shadow(0 0 18px rgba(122, 162, 255, 0.75));
+    }
+
+    .holo-face__word {
+        color: #dee6ee;
+        font-family: var(--font-display);
+        font-size: 22px;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+    }
+
+    .holo-face__sub {
+        color: #7c8ea1;
+        font-family: var(--font-mono);
+        font-size: 8px;
+        letter-spacing: 0.24em;
+    }
+
+    .holo-face__circuit {
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(
+                90deg,
+                transparent 48%,
+                rgba(122, 162, 255, 0.35) 49%,
+                rgba(122, 162, 255, 0.35) 51%,
+                transparent 52%
+            ),
+            linear-gradient(
+                0deg,
+                transparent 48%,
+                rgba(122, 162, 255, 0.22) 49%,
+                rgba(122, 162, 255, 0.22) 51%,
+                transparent 52%
+            ),
+            radial-gradient(circle at 20% 30%, rgba(122, 162, 255, 0.9) 0 1.5px, transparent 2px),
+            radial-gradient(circle at 70% 65%, rgba(122, 162, 255, 0.8) 0 1.5px, transparent 2px);
+        background-size:
+            48px 48px,
+            48px 48px,
+            48px 48px,
+            48px 48px;
+        opacity: 0.5;
+    }
+
+    .holo-face__serial {
+        position: absolute;
+        bottom: 9px;
+        left: 9px;
+        color: rgba(168, 194, 255, 0.65);
+        font-family: var(--font-mono);
+        font-size: 7px;
+        letter-spacing: 0.2em;
+    }
+
+    .holo-face__cross {
+        position: absolute;
+        inset: 36%;
+        border: 1px solid rgba(122, 162, 255, 0.4);
+        border-radius: 50%;
+    }
+
+    .holo-face__cross::before,
+    .holo-face__cross::after {
+        content: '';
+        position: absolute;
+        background: rgba(122, 162, 255, 0.45);
+    }
+
+    .holo-face__cross::before {
+        top: 50%;
+        left: -12%;
+        right: -12%;
+        height: 1px;
+    }
+
+    .holo-face__cross::after {
+        top: -12%;
+        bottom: -12%;
+        left: 50%;
+        width: 1px;
+    }
+
+    /* --- Orbits and labels ---------------------------------------------- */
+
+    .holo-ring {
+        position: absolute;
+        inset: 6%;
+        border: 1px solid rgba(122, 162, 255, 0.25);
+        border-radius: 50%;
+        transform-style: preserve-3d;
+        animation: holo-ring-spin 22s linear infinite;
+    }
+
+    .holo-ring::before {
+        content: '';
+        position: absolute;
+        top: -3px;
+        left: 50%;
+        width: 5px;
+        height: 5px;
+        background: #a8c2ff;
+        box-shadow: 0 0 12px #7aa2ff;
+        transform: translateX(-50%);
+    }
+
+    .holo-ring--b {
+        inset: 16%;
+        border-color: rgba(167, 139, 250, 0.35);
+        border-style: dashed;
+        animation-duration: 16s;
+        animation-direction: reverse;
+    }
+
+    .holo-tag {
+        position: absolute;
+        z-index: 5;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 7px 9px;
+        border: 1px solid rgba(122, 162, 255, 0.3);
+        border-left: 2px solid #7aa2ff;
+        background: rgba(9, 17, 30, 0.84);
+        box-shadow:
+            0 14px 34px -18px rgba(0, 0, 0, 0.95),
+            0 0 22px rgba(80, 120, 255, 0.14);
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+        animation: holo-float-2d 7s ease-in-out infinite;
+        pointer-events: none;
+    }
+
+    .holo-tag--a {
+        top: 12%;
+        right: 0;
+    }
+
+    .holo-tag--b {
+        right: 3%;
+        bottom: 4%;
+        animation-delay: -2.5s;
+    }
+
+    .holo-tag__k {
+        color: #7c8ea1;
+        font-family: var(--font-mono);
+        font-size: 7px;
+        letter-spacing: 0.18em;
+    }
+
+    .holo-tag__v {
+        color: #cfe0ff;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+    }
+
+    .holo-hint {
+        position: absolute;
+        bottom: 8px;
+        left: 50%;
+        z-index: 6;
+        display: none;
+        color: rgba(152, 169, 186, 0.72);
+        font-family: var(--font-mono);
+        font-size: 8px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        transform: translateX(-50%);
+        pointer-events: none;
+    }
+
+    /* --- The scroll cue & marquee --------------------------------------- */
+
+    .kilau-cue {
+        position: absolute;
+        right: 30px;
+        bottom: 70px;
+        z-index: 5;
+        display: none;
+        align-items: center;
+        gap: 10px;
+        color: #7c8ea1;
+        font-family: var(--font-mono);
+        font-size: 8px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+    }
+
+    .kilau-cue__line {
+        display: block;
+        width: 1px;
+        height: 36px;
+        background: linear-gradient(to bottom, #7aa2ff, transparent);
+        animation: kilau-cue 2.4s ease-in-out infinite;
+    }
+
+    .kilau-marquee {
+        position: relative;
+        z-index: 5;
+        overflow: hidden;
+        border-top: 1px solid rgba(122, 162, 255, 0.18);
+        background: rgba(6, 10, 16, 0.6);
+    }
+
+    .kilau-marquee:hover .kilau-marquee__track {
+        animation-play-state: paused;
+    }
+
+    .kilau-marquee__track {
+        display: flex;
+        width: max-content;
+        animation: kilau-marquee 32s linear infinite;
+    }
+
+    .kilau-marquee__group {
+        display: flex;
+        align-items: center;
+        gap: 26px;
+        padding: 11px 26px 11px 0;
+        color: transparent;
+        font-family: var(--font-display);
+        font-size: clamp(1.1rem, 2.2vw, 1.9rem);
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        -webkit-text-stroke: 1px rgba(168, 194, 255, 0.4);
+    }
+
+    .kilau-marquee__group .is-fill {
+        color: #dee6ee;
+        text-shadow: 0 0 30px rgba(122, 162, 255, 0.28);
+        -webkit-text-stroke: 0;
+    }
+
+    .kilau-marquee__star {
+        color: #7aa2ff;
+        font-size: 0.68em;
+        text-shadow: 0 0 16px rgba(122, 162, 255, 0.85);
+        -webkit-text-stroke: 0;
+    }
+
+    /* --- Entrance ------------------------------------------------------- */
+
+    .kilau-rise {
+        animation: kilau-rise 900ms var(--ease-plot) both;
+    }
+
+    .kilau-rise--1 {
+        animation-delay: 60ms;
+    }
+
+    .kilau-rise--2 {
+        animation-delay: 150ms;
+    }
+
+    .kilau-rise--3 {
+        animation-delay: 260ms;
+    }
+
+    .kilau-rise--4 {
+        animation-delay: 360ms;
+    }
+
+    .kilau-rise--5 {
+        animation-delay: 460ms;
+    }
+
+    /* --- Scroll progress: a rule that keeps the reader's place ----------- */
+
+    .kilau-progress {
+        position: fixed;
+        inset-inline: 0;
+        top: 0;
+        z-index: 97;
+        height: 3px;
+        pointer-events: none;
+    }
+
+    .kilau-progress__bar {
+        height: 100%;
+        transform: scaleX(0);
+        transform-origin: left center;
+        background: linear-gradient(90deg, #7aa2ff 0%, #a78bfa 55%, #ff7ac8 100%);
+        box-shadow: 0 0 14px rgba(122, 162, 255, 0.8);
+        will-change: transform;
+    }
+
+    /* --- Sticky header, promoted out of the scrolling layer --------------
+       Chrome can leave a stale paint of a `position: sticky` header at its old
+       position when the page behind it is a composited layer (the hero's 3D
+       cube, blur filters, and blend modes all qualify). The visible symptom is a
+       ghost header at the top of the viewport while the real one has moved back
+       down to its natural position below the issuer strip — it shows up when
+       scrolling back to the very top, exactly where the sticky offset drops from
+       `0` to `32px`.
+
+       This is the compositor equivalent of the 2017 Blink fix that promotes a
+       sticky element inside a composited scrolling ancestor: give the header its
+       own layer so the whole layer moves, instead of repainting a non-composited
+       element inside a layer that is being scrolled on the main thread.
+       https://codereview.chromium.org/2845613002 */
+    .site-header {
+        transform: translateZ(0);
+        backface-visibility: hidden;
+        will-change: transform;
+    }
+
+    /* --- Keyframes ------------------------------------------------------- */
+
+    @keyframes kilau-drift {
+        0% {
+            transform: translate3d(-2%, -1%, 0) scale(1);
+        }
+        50% {
+            transform: translate3d(4%, 3%, 0) scale(1.08);
+        }
+        100% {
+            transform: translate3d(-1%, 5%, 0) scale(0.98);
+        }
+    }
+
+    @keyframes kilau-grid-run {
+        to {
+            background-position: 0 72px;
+        }
+    }
+
+    @keyframes kilau-particle-rise {
+        0% {
+            opacity: 0;
+            transform: translate3d(0, 24px, 0) scale(0.5);
+        }
+        14% {
+            opacity: 0.85;
+        }
+        72% {
+            opacity: 0.4;
+        }
+        100% {
+            opacity: 0;
+            transform: translate3d(16px, -130px, 0) scale(1);
+        }
+    }
+
+    @keyframes kilau-ping {
+        0% {
+            box-shadow: 0 0 0 0 rgba(122, 162, 255, 0.55);
+        }
+        70%,
+        100% {
+            box-shadow: 0 0 0 7px rgba(122, 162, 255, 0);
+        }
+    }
+
+    @keyframes kilau-holo {
+        to {
+            background-position: 220% center;
+        }
+    }
+
+    @keyframes kilau-glitch-a {
+        0%,
+        86%,
+        100% {
+            opacity: 0;
+            transform: translate(0, 0);
+        }
+        87% {
+            opacity: 0.85;
+            transform: translate(-4px, -1px);
+        }
+        89% {
+            opacity: 0.6;
+            transform: translate(2px, 1px);
+        }
+        91% {
+            opacity: 0.8;
+            transform: translate(-2px, 0);
+        }
+        94% {
+            opacity: 0;
+        }
+    }
+
+    @keyframes kilau-glitch-b {
+        0%,
+        80%,
+        100% {
+            opacity: 0;
+            transform: translate(0, 0);
+        }
+        81% {
+            opacity: 0.8;
+            transform: translate(3px, 2px);
+        }
+        84% {
+            opacity: 0.5;
+            transform: translate(-2px, 1px);
+        }
+        87% {
+            opacity: 0;
+        }
+    }
+
+    @keyframes kilau-sheen {
+        0%,
+        52% {
+            transform: translateX(-120%) skewX(-20deg);
+        }
+        74%,
+        100% {
+            transform: translateX(440%) skewX(-20deg);
+        }
+    }
+
+    @keyframes holo-breathe {
+        0%,
+        100% {
+            opacity: 0.7;
+            transform: scale(0.96);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(1.05);
+        }
+    }
+
+    @keyframes holo-blink {
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.25;
+        }
+    }
+
+    @keyframes holo-scan {
+        0% {
+            opacity: 0;
+            transform: translateY(0);
+        }
+        12% {
+            opacity: 1;
+        }
+        100% {
+            opacity: 0;
+            transform: translateY(390%);
+        }
+    }
+
+    @keyframes holo-spin {
+        from {
+            transform: rotateX(-18deg) rotateY(-24deg);
+        }
+        to {
+            transform: rotateX(-18deg) rotateY(336deg);
+        }
+    }
+
+    @keyframes holo-ring-spin {
+        from {
+            transform: rotateX(72deg) rotateZ(0deg);
+        }
+        to {
+            transform: rotateX(72deg) rotateZ(360deg);
+        }
+    }
+
+    @keyframes holo-float-2d {
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-8px);
+        }
+    }
+
+    @keyframes kilau-cue {
+        0%,
+        100% {
+            opacity: 0.35;
+            transform: scaleY(0.6);
+            transform-origin: top center;
+        }
+        50% {
+            opacity: 1;
+            transform: scaleY(1);
+            transform-origin: top center;
+        }
+    }
+
+    @keyframes kilau-marquee {
+        to {
+            transform: translateX(-50%);
+        }
+    }
+
+    @keyframes kilau-rise {
+        from {
+            opacity: 0;
+            transform: translate3d(0, 26px, 0);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+
+    /* --- Motion, turned down -------------------------------------------- */
+
+    :root[data-motion='reduced'] .kilau-blob,
+    :root[data-motion='reduced'] .kilau-grid,
+    :root[data-motion='reduced'] .kilau-particle,
+    :root[data-motion='reduced'] .kilau-kicker__dot,
+    :root[data-motion='reduced'] .kilau-title__line--glow,
+    :root[data-motion='reduced'] .kilau-glitch::before,
+    :root[data-motion='reduced'] .kilau-glitch::after,
+    :root[data-motion='reduced'] .kilau-cta::before,
+    :root[data-motion='reduced'] .holo-stage__glow,
+    :root[data-motion='reduced'] .holo-live,
+    :root[data-motion='reduced'] .holo-face__scan,
+    :root[data-motion='reduced'] .holo-cube,
+    :root[data-motion='reduced'] .holo-ring,
+    :root[data-motion='reduced'] .holo-tag,
+    :root[data-motion='reduced'] .kilau-cue__line,
+    :root[data-motion='reduced'] .kilau-marquee__track,
+    :root[data-motion='reduced'] .kilau-rise {
+        animation: none !important;
+    }
+
+    :root[data-motion='reduced'] .kilau-particle {
+        display: none;
+    }
+
+    :root[data-motion='reduced'] .stamp::after {
+        display: none;
+    }
+
+    :root[data-motion='reduced'] .stamp-2::after {
+        display: none;
+    }
+
+    :root[data-motion='reduced'] .holo-tilt {
+        transform: none !important;
+    }
+
+    :root[data-motion='reduced'] .holo-cube {
+        transform: rotateX(-18deg) rotateY(-28deg);
+    }
+
+    :root[data-motion='reduced'] .kilau-rise {
+        opacity: 1 !important;
+        transform: none !important;
+    }
+
+    /* --- Responsive ------------------------------------------------------ */
+
+    @media (min-width: 640px) {
+        .kilau-lede {
+            font-size: 14px;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .kilau-cue {
+            display: flex;
+        }
+    }
+
+    @media (max-width: 639px) {
+        .holo-hud--bl,
+        .holo-hud--br {
+            display: none;
+        }
+
+        .holo-tag {
+            padding: 5px 7px;
+        }
+
+        .holo-tag__v {
+            font-size: 9px;
+        }
+
+        .holo-hint {
+            display: block;
+        }
+
+        .kilau-scene {
+            max-width: min(390px, 94vw);
+        }
+    }
+}
+
+/* ============================================================================
+   KILAU — the whole site's pulse
+   ----------------------------------------------------------------------------
+   The hero is the loud surface; this layer is the pulse underneath every other
+   sheet. It is intentionally made of the cheap stuff: one composited fade on
+   navigation, a 2D spark canvas that dies when the pointer stops, and hover
+   light that follows the same one-actor palette. No page has to opt in.
+   ========================================================================== */
+
+@layer components {
+    .rkt-confetti {
+        position: fixed;
+        inset: 0;
+        z-index: 95;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+
+    .page-main {
+        animation: page-enter 620ms var(--ease-plot) both;
+    }
+
+    @keyframes page-enter {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    /* A frame that is being looked at is lit, not raised. The glow is one step
+       of cyanotype rather than a drop shadow, so the flat sheet survives. */
+    main .zone-frame,
+    main .plate,
+    main .register {
+        transition:
+            border-color 260ms var(--ease-plot),
+            box-shadow 260ms var(--ease-plot);
+    }
+
+    main .zone-frame:hover,
+    main .plate:hover {
+        border-color: var(--color-cyan);
+        box-shadow:
+            0 0 0 1px rgba(122, 162, 255, 0.12),
+            0 20px 52px -42px rgba(14, 58, 143, 0.7);
+    }
+
+    main .register:hover {
+        box-shadow:
+            0 0 0 1px rgba(122, 162, 255, 0.1),
+            0 20px 52px -42px rgba(14, 58, 143, 0.55);
+    }
+
+    .data-table tbody tr {
+        transition:
+            background 220ms var(--ease-plot),
+            box-shadow 220ms var(--ease-plot);
+    }
+
+    .data-table tbody tr:hover {
+        background: linear-gradient(90deg, rgba(122, 162, 255, 0.09), transparent 72%);
+        box-shadow: inset 2px 0 0 var(--color-cyan);
+    }
+
+    /* The catalogue plate: a small lift and a light pass, on top of the image
+       zoom the plate already carries. `translate` is used instead of `transform`
+       so the `rise-in` entrance keeps its own transform and the two do not
+       overwrite each other. */
+    .rkt-plate {
+        position: relative;
+        overflow: hidden;
+        transition:
+            translate 280ms var(--ease-plot),
+            border-color 240ms var(--ease-plot),
+            box-shadow 280ms var(--ease-plot);
+    }
+
+    .rkt-plate::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        background: linear-gradient(
+            120deg,
+            transparent 30%,
+            rgba(122, 162, 255, 0.14) 50%,
+            transparent 70%
+        );
+        transform: translateX(-130%);
+        transition: transform 640ms var(--ease-plot);
+        pointer-events: none;
+    }
+
+    .rkt-plate:hover {
+        translate: 0 -3px;
+        border-color: var(--color-cyan);
+        box-shadow: 0 20px 46px -32px rgba(14, 58, 143, 0.7);
+    }
+
+    .rkt-plate:hover::after {
+        transform: translateX(130%);
+    }
+
+    /* The module pyramid: a wide, short canvas inside the sheet frame. It fades
+       in only when the scene has actually painted, so a failed WebGL build never
+       leaves an empty hole where the diagram was. */
+    .pyr-scene {
+        position: relative;
+        width: 100%;
+        height: 240px;
+        opacity: 0;
+        transition: opacity 700ms var(--ease-plot);
+    }
+
+    .pyr-scene.is-ready {
+        opacity: 1;
+    }
+
+    .pyr-scene__canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+        cursor: pointer;
+        touch-action: manipulation;
+    }
+
+    .lock-scene {
+        position: relative;
+        width: 100%;
+        height: 210px;
+        opacity: 0;
+        transition: opacity 700ms var(--ease-plot);
+    }
+
+    .lock-scene.is-ready {
+        opacity: 1;
+    }
+
+    .lock-scene__canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+        touch-action: manipulation;
+    }
+
+    .tech-scene {
+        position: relative;
+        width: 100%;
+        height: 190px;
+        opacity: 0;
+        transition: opacity 700ms var(--ease-plot);
+    }
+
+    .tech-scene.is-ready {
+        opacity: 1;
+    }
+
+    .tech-scene__canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+        touch-action: pan-y;
+    }
+
+    .tech-scene--rail {
+        height: 150px;
+    }
+
+    :root[data-motion='reduced'] .pyr-scene,
+    :root[data-motion='reduced'] .lock-scene,
+    :root[data-motion='reduced'] .tech-scene {
+        opacity: 1;
+    }
+
+    @media (max-width: 639px) {
+        .pyr-scene {
+            height: 205px;
+        }
+    }
+
+    :root[data-motion='reduced'] .rkt-confetti {
+        display: none;
+    }
+
+    :root[data-motion='reduced'] .rkt-plate,
+    :root[data-motion='reduced'] .rkt-plate::after,
+    :root[data-motion='reduced'] .page-main {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* ============================================================================
+   The KILAU stage in the sheet temperature
+   ----------------------------------------------------------------------------
+   The hero was a plotter field by construction: fixed dark values rather than
+   tokens. In the light temperature it becomes a pale holographic sheet, with the
+   same instrument, cube and marquee. The 3D viewport keeps its dark materials
+   (they are the object, not the page); everything that belongs to the sheet —
+   type, rules, tags, HUD, marquee — re-tempers here.
+   ========================================================================== */
+
+@layer components {
+    :root[data-theme='sheet'] .kilau-hero {
+        background:
+            radial-gradient(ellipse 75% 60% at 64% -8%, rgba(59, 130, 246, 0.18), transparent 62%),
+            radial-gradient(ellipse 55% 50% at 8% 100%, rgba(139, 92, 246, 0.12), transparent 70%),
+            #f4f7fc;
+        color: #0c1622;
+    }
+
+    :root[data-theme='sheet'] .kilau-hero::before {
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(14, 58, 143, 0.42),
+            rgba(124, 58, 237, 0.28),
+            transparent
+        );
+    }
+
+    :root[data-theme='sheet'] .kilau-hero::after {
+        background: linear-gradient(90deg, transparent, rgba(14, 58, 143, 0.24), transparent);
+    }
+
+    :root[data-theme='sheet'] .kilau-hero :focus-visible {
+        outline-color: #0e3a8f;
+    }
+
+    :root[data-theme='sheet'] .kilau-blob {
+        opacity: 0.3;
+        mix-blend-mode: multiply;
+        filter: blur(80px);
+    }
+
+    :root[data-theme='sheet'] .kilau-grid {
+        background-image:
+            linear-gradient(to right, rgba(14, 58, 143, 0.12) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(14, 58, 143, 0.12) 1px, transparent 1px);
+    }
+
+    :root[data-theme='sheet'] .kilau-scan {
+        background: repeating-linear-gradient(
+            to bottom,
+            rgba(12, 22, 34, 0.035) 0 1px,
+            transparent 1px 4px
+        );
+        opacity: 0.24;
+    }
+
+    :root[data-theme='sheet'] .kilau-particle {
+        background: #0e3a8f;
+        box-shadow:
+            0 0 10px rgba(14, 58, 143, 0.35),
+            0 0 24px rgba(14, 58, 143, 0.15);
+    }
+
+    :root[data-theme='sheet'] .kilau-kicker {
+        border-color: rgba(14, 58, 143, 0.22);
+        background: rgba(255, 255, 255, 0.66);
+        color: #0e3a8f;
+    }
+
+    :root[data-theme='sheet'] .kilau-kicker__dot {
+        background: #0e3a8f;
+    }
+
+    :root[data-theme='sheet'] .kilau-title__line:first-child {
+        color: #0c1622;
+        text-shadow: 0 0 44px rgba(59, 130, 246, 0.12);
+    }
+
+    :root[data-theme='sheet'] .kilau-title__line--glow {
+        background: linear-gradient(
+            100deg,
+            #0e3a8f 0%,
+            #2563eb 28%,
+            #7c3aed 55%,
+            #db2777 82%,
+            #0e3a8f 100%
+        );
+        background-size: 220% auto;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 26px rgba(37, 99, 235, 0.18));
+    }
+
+    :root[data-theme='sheet'] .kilau-title__line--outline {
+        -webkit-text-stroke: 1px rgba(12, 22, 34, 0.62);
+        text-shadow: none;
+    }
+
+    :root[data-theme='sheet'] .kilau-glitch::before {
+        color: #2563eb;
+    }
+
+    :root[data-theme='sheet'] .kilau-glitch::after {
+        color: #db2777;
+    }
+
+    :root[data-theme='sheet'] .kilau-lede {
+        color: #46586b;
+    }
+
+    :root[data-theme='sheet'] .kilau-cta-2 {
+        border-color: rgba(12, 22, 34, 0.22);
+        background: rgba(255, 255, 255, 0.68);
+        color: #0c1622;
+    }
+
+    :root[data-theme='sheet'] .kilau-cta-2:hover {
+        border-color: rgba(14, 58, 143, 0.7);
+        background: rgba(14, 58, 143, 0.08);
+        color: #0e3a8f;
+    }
+
+    :root[data-theme='sheet'] .kilau-status {
+        border-top-color: rgba(14, 58, 143, 0.18);
+        color: #5f7082;
+    }
+
+    :root[data-theme='sheet'] .kilau-status__dot {
+        background: #0e3a8f;
+        box-shadow: 0 0 8px rgba(14, 58, 143, 0.5);
+    }
+
+    :root[data-theme='sheet'] .kilau-cue {
+        color: #5f7082;
+    }
+
+    :root[data-theme='sheet'] .kilau-cue__line {
+        background: linear-gradient(to bottom, #0e3a8f, transparent);
+    }
+
+    :root[data-theme='sheet'] .kilau-marquee {
+        border-top-color: rgba(14, 58, 143, 0.18);
+        background: rgba(255, 255, 255, 0.58);
+    }
+
+    :root[data-theme='sheet'] .kilau-marquee__group {
+        -webkit-text-stroke: 1px rgba(14, 58, 143, 0.38);
+    }
+
+    :root[data-theme='sheet'] .kilau-marquee__group .is-fill {
+        color: #0c1622;
+        text-shadow: none;
+    }
+
+    :root[data-theme='sheet'] .kilau-marquee__star {
+        color: #0e3a8f;
+        text-shadow: none;
+    }
+
+    :root[data-theme='sheet'] .holo-hud {
+        color: rgba(70, 88, 107, 0.9);
+    }
+
+    :root[data-theme='sheet'] .holo-bracket {
+        border-color: rgba(14, 58, 143, 0.45);
+    }
+
+    :root[data-theme='sheet'] .holo-live {
+        background: #0e3a8f;
+        box-shadow: 0 0 10px rgba(14, 58, 143, 0.45);
+    }
+
+    :root[data-theme='sheet'] .holo-stage__glow {
+        background: radial-gradient(
+            circle at var(--glow-x) var(--glow-y),
+            rgba(59, 130, 246, 0.18),
+            rgba(124, 58, 237, 0.08) 42%,
+            transparent 68%
+        );
+    }
+
+    :root[data-theme='sheet'] .holo-stage__floor {
+        background: radial-gradient(ellipse, rgba(59, 130, 246, 0.22), transparent 70%);
+    }
+
+    :root[data-theme='sheet'] .holo-tag {
+        border-color: rgba(14, 58, 143, 0.22);
+        border-left-color: #0e3a8f;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow:
+            0 14px 34px -18px rgba(14, 58, 143, 0.28),
+            0 0 22px rgba(59, 130, 246, 0.08);
+    }
+
+    :root[data-theme='sheet'] .holo-tag__k {
+        color: #5f7082;
+    }
+
+    :root[data-theme='sheet'] .holo-tag__v {
+        color: #0c1622;
+    }
+
+    :root[data-theme='sheet'] .holo-hint {
+        color: #5f7082;
+    }
+}
+
+/* ============================================================================
+   The temperature reveal
+   ========================================================================== */
+
+/* Switching temperature is a circular reveal grown from the switch itself, using
+   the View Transitions API. The browser keeps a snapshot of the old sheet, this
+   root snapshot sits on top of it, and the animation below clips that snapshot to
+   a circle that grows until it clears the furthest corner.
+
+   The default cross-fade is switched off first: a fade would dissolve one sheet
+   into the other, which is exactly the soft transition this world does not use.
+   The reveal is a hard edge travelling outward — a line being drawn, at page
+   scale. */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+    z-index: 1;
+}
+
+::view-transition-new(root) {
+    z-index: 2;
+}
+
+/* A browser without the API changes temperature instantly, which is fine. This
+   keeps the pretend state honest where the API exists but motion was declined. */
+:root[data-motion='reduced'] {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none !important;
+    }
+}
+
+/* ============================================================================
+   The instrument: a drafting crosshair in place of the platform cursor
+   ========================================================================== */
+
+/* Suppression lives OUTSIDE every layer, and that placement is the whole point.
+ *
+ * Tailwind's `cursor-pointer`, `cursor-not-allowed`, `cursor-default` and
+ * `cursor-text` are utilities, and utilities are emitted in a later cascade layer
+ * than components. A `.has-instrument *` rule written inside `@layer components`
+ * therefore loses to a `cursor-pointer` class on a button however it is phrased —
+ * and this app uses those utilities in seventeen places, which is exactly why a
+ * native pointer kept reappearing on controls while the crosshair was supposedly
+ * in charge.
+ *
+ * Unlayered declarations beat every layered one, so this wins against the
+ * utilities without an `!important` escalating anything.
+ *
+ * `prefers-reduced-motion` does not remove this: the crosshair is an instrument,
+ * not an effect. The platform cursor only ever comes back when the pointer is
+ * coarse or absent, because the class is added in JS.
+ */
+.has-instrument,
+.has-instrument *,
+.has-instrument *::before,
+.has-instrument *::after {
+    cursor: none;
+}
+
+@layer components {
+    /* Nothing gets the platform cursor back.
+    
+       Two earlier attempts here handed the pointer and the I-beam back to the
+       browser on the grounds that a native affordance beats a drawn one. It does
+       not, in this world: a system arrow appearing in the middle of a drawing
+       sheet is the one object on the page that was made by somebody else. Every
+       state the platform distinguishes — pointer, I-beam, resize — is drawn by
+       .instr instead, at the same 1px weight as the rest of the sheet, and it
+       switches on the same rules the browser would have used. */
+
+    .instr {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 220ms var(--ease-plot);
+        --instr-ink: var(--color-cyan);
+        --instr-rule: var(--color-rule-2);
+    }
+
+    .instr[data-visible='true'] {
+        opacity: 1;
+    }
+
+    /* The temperature comes from a data attribute set in JS, not from ancestry:
+       the cursor is mounted as a sibling AFTER the app root, so neither
+       .plot .instr (descendant) nor .instr:has(~ .plot) (later sibling) can
+       ever match it. Keyed on ancestry it stayed cyanotype on the plot ground,
+       which measures 1.88:1 and is effectively invisible over the whole console
+       and every module sheet. */
+    .instr[data-tone='plot'] {
+        --instr-ink: var(--color-lit);
+        --instr-rule: var(--color-chalk-2);
+    }
+
+    .instr__axis {
+        position: absolute;
+        background: var(--instr-rule);
+        opacity: 0.5;
+        will-change: transform;
+    }
+
+    .instr__axis--v {
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 1px;
+    }
+
+    .instr__axis--h {
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 1px;
+    }
+
+    .instr__ring {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 36px;
+        height: 36px;
+        border: 1px solid var(--instr-rule);
+        opacity: 0.75;
+        will-change: transform;
+        transition:
+            width 200ms var(--ease-plot),
+            height 200ms var(--ease-plot),
+            border-color 200ms var(--ease-plot),
+            opacity 200ms var(--ease-plot);
+    }
+
+    .instr__head {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 14px;
+        height: 14px;
+        border: 1px solid var(--instr-ink);
+        will-change: transform;
+        transition:
+            background 160ms var(--ease-plot),
+            transform 60ms linear;
+    }
+
+    .instr__head::before,
+    .instr__head::after {
+        content: '';
+        position: absolute;
+        background: var(--instr-ink);
+    }
+
+    /* The head is a crosshair: a tick out of each edge and a centre mark. */
+    .instr__head::before {
+        left: 50%;
+        top: -6px;
+        bottom: -6px;
+        width: 1px;
+        transform: translateX(-0.5px);
+    }
+
+    .instr__head::after {
+        top: 50%;
+        left: -6px;
+        right: -6px;
+        height: 1px;
+        transform: translateY(-0.5px);
+    }
+
+    .instr__readout,
+    .instr__label {
+        position: absolute;
+        top: 0;
+        left: 0;
+        font-family: var(--font-mono);
+        font-size: 9px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        will-change: transform;
+    }
+
+    .instr__readout {
+        color: var(--instr-rule);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .instr__label {
+        color: var(--instr-ink);
+        opacity: 0;
+        transition: opacity 160ms var(--ease-plot);
+    }
+
+    /* --- states --- */
+    .instr[data-state='action'] .instr__head,
+    .instr[data-state='drag'] .instr__head {
+        background: var(--instr-ink);
+    }
+
+    .instr[data-state='action'] .instr__ring,
+    .instr[data-state='drag'] .instr__ring,
+    .instr[data-state='measure'] .instr__ring {
+        width: 52px;
+        height: 52px;
+    }
+
+    .instr[data-state='action'] .instr__label,
+    .instr[data-state='drag'] .instr__label,
+    .instr[data-state='measure'] .instr__label {
+        opacity: 1;
+    }
+
+    .instr[data-state='measure'] .instr__ring {
+        border-color: var(--instr-ink);
+        opacity: 1;
+    }
+
+    .instr[data-state='measure'] .instr__axis {
+        opacity: 0.9;
+        background: var(--instr-ink);
+    }
+
+    /* --- the I-beam: the one state that changes shape, not just colour ------ */
+    .instr[data-state='text'] .instr__head {
+        width: 1px;
+        height: 17px;
+        border: 0;
+        background: var(--instr-ink);
+    }
+
+    /* Two serifs, top and bottom — the mark a text cursor has worn for forty
+       years, drawn at the same weight as every other rule on the sheet. */
+    .instr[data-state='text'] .instr__head::before,
+    .instr[data-state='text'] .instr__head::after {
+        left: 50%;
+        width: 7px;
+        height: 1px;
+        transform: translateX(-50%);
+        background: var(--instr-ink);
+    }
+
+    .instr[data-state='text'] .instr__head::before {
+        top: 0;
+        bottom: auto;
+    }
+
+    .instr[data-state='text'] .instr__head::after {
+        top: auto;
+        bottom: 0;
+    }
+
+    /* A text cursor has no crosshair: the axes and the ring belong to measuring,
+       and carrying them over a field would say the sheet is doing something it is
+       not. The coordinate readout stays — it is the instrument's own voice. */
+    .instr[data-state='text'] .instr__axis,
+    .instr[data-state='text'] .instr__ring {
+        opacity: 0;
+    }
+
+    .instr[data-state='text'] .instr__label {
+        opacity: 1;
+    }
+
+    /* Typing tightens the mark rather than removing the instrument. */
+    .instr[data-editing='true'] .instr__head {
+        height: 21px;
+    }
+
+    .instr[data-editing='true'] .instr__readout {
+        opacity: 0.45;
+    }
+
+    .instr[data-pressed='true'] .instr__head {
+        transform-origin: center;
+        background: var(--instr-ink);
+    }
+
+    .instr[data-pressed='true'] .instr__ring {
+        width: 22px;
+        height: 22px;
+        opacity: 1;
+    }
+
+    :root[data-motion='reduced'] {
+        .instr__ring,
+        .instr__head,
+        .instr__label {
+            transition: none;
+        }
+    }
+
+    /* Reduced motion keeps the instrument but drops its trailing weight. */
+    :root[data-motion='reduced'] {
+        .instr__ring {
+            display: none;
+        }
+    }
+}
+
+@utility no-scrollbar {
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}

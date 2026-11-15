@@ -1,0 +1,130 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: msi_app
+    restart: unless-stopped
+    # `restart` only reacts to a process that exits. A php-fpm pool that is alive but
+    # no longer answering is not restarted by anything, and to a visitor that is the
+    # same as being down. The healthcheck is what turns "alive but broken" into
+    # "unhealthy", which is a state Docker can act on and a state `docker compose ps`
+    # will show.
+    #
+    # This checks the FastCGI port the pool listens on, because the PHP container
+    # speaks FastCGI, not HTTP — the HTTP check belongs on nginx, where it exercises
+    # the whole chain.
+    healthcheck:
+      test: ["CMD-SHELL", "php -r '$$s = @fsockopen(\"127.0.0.1\", 9000, $$e, $$m, 2); exit($$s ? 0 : 1);'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    working_dir: /var/www
+    # The bind-mounted source arrives from the Windows host with synthetic
+    # ownership, so a file written by a root-owned process (a `docker exec ...
+    # php artisan` run, a compiled Blade view, the log file) can afterwards be
+    # unwritable by the php-fpm worker. The first symptom is a 500 whose message
+    # is about storage/logs/laravel.log, which buries the real error underneath.
+    # Normalising the two writable trees on every start keeps that from coming
+    # back after a root-owned command.
+    command: sh -c "chmod -R a+rwX storage bootstrap/cache 2>/dev/null; exec php-fpm"
+    volumes:
+      - .:/var/www
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+      - ./docker/php/zz-docker.conf:/usr/local/etc/php-fpm.d/zz-docker.conf
+    networks:
+      - msi_network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    container_name: msi_nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    # The one check that exercises the real path: nginx → php-fpm → Laravel. It asks
+    # for Laravel's own /up route, so a container that answers TCP but cannot boot the
+    # framework is reported unhealthy rather than healthy.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/up || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    volumes:
+      - .:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - msi_network
+    depends_on:
+      app:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.0
+    container_name: msi_db
+    restart: unless-stopped
+    command:
+      - --performance_schema=OFF
+      - --skip-log-bin
+      - --innodb_buffer_pool_size=16M
+      - --innodb_redo_log_capacity=8388608
+      - --innodb_log_buffer_size=1M
+      - --key_buffer_size=4M
+      - --max_connections=15
+      - --table_open_cache=60
+      - --table_definition_cache=100
+      - --innodb_open_files=100
+      - --thread_cache_size=2
+      - --join_buffer_size=128K
+      - --sort_buffer_size=128K
+      - --read_buffer_size=128K
+      - --read_rnd_buffer_size=128K
+      - --log_bin_trust_function_creators=1
+    environment:
+      MYSQL_DATABASE: msi_db
+      MYSQL_USER: msi_user
+      MYSQL_PASSWORD: msi_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "33060:3306"
+    # mysqladmin ping answers only when the server is accepting connections, which is
+    # several seconds after the container has started. Without this, an app container
+    # that depends on `db` starts too early and the first request fails on connection.
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-proot_password"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - msi_network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: msi_phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      MEMORY_LIMIT: 32M
+      UPLOAD_LIMIT: 10M
+    networks:
+      - msi_network
+    depends_on:
+      - db
+
+networks:
+  msi_network:
+    driver: bridge
+
+volumes:
+  db_data:
+    driver: local
