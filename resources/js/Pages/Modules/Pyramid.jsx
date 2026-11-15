@@ -432,6 +432,77 @@ export default function Pyramid({ stats = {} }) {
                         </table>
                     </div>
                 </section>
+
+                {/* ── Bab VII: People di Dalam Sistem Informasi ───────────── */}
+                <section className="mt-10">
+                    <SectionHead
+                        drawn
+                        title="People di dalam sistem informasi (Bab VII)"
+                        meta="Peran pencipta, pengelola, manajemen & pengguna"
+                    />
+
+                    <div className="register mt-4 overflow-x-auto">
+                        <table className="data-table min-w-[720px]">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Kelompok</th>
+                                    <th scope="col">Peran SI</th>
+                                    <th scope="col">Tanggung jawab inti (Bab VII)</th>
+                                    <th scope="col">Representasi di RAKIT</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {[
+                                    [
+                                        'Creators',
+                                        'Systems Analyst & Programmer',
+                                        'Mengidentifikasi kebutuhan bisnis, merancang alur/skema DB, serta menulis perangkat lunak.',
+                                        'Arsitektur Laravel, migrasi SQL & modul KMS/EIS.',
+                                    ],
+                                    [
+                                        'Operations',
+                                        'Database Administrator (DBA)',
+                                        'Mengontrol skema basis data, otorisasi akses, optimasi indeks, dan pencadangan.',
+                                        'Pengelolaan trigger `logs`, prosedur `getcat`, dan indeks katalog.',
+                                    ],
+                                    [
+                                        'Operations',
+                                        'Help Desk / Support Analyst',
+                                        'Membantu pengguna akhir menyelesaikan kendala teknis serta menjaga pengetahuan FAQ.',
+                                        'Chatbot KMS (/kms) dan diagnosa kompatibilitas (/iss).',
+                                    ],
+                                    [
+                                        'Management',
+                                        'CIO & CISO',
+                                        'Penyelarasan strategi TI dengan bisnis (CIO) dan kebijakan keamanan informasi (CISO).',
+                                        'Panel Kendali Admin (/admin), RBAC, dan rate-limit auth.',
+                                    ],
+                                    [
+                                        'Management',
+                                        'Project Manager',
+                                        'Memastikan proyek TI selesai tepat waktu, sesuai anggaran, dan menjaga kualitas.',
+                                        'Manajemen tugas & tenggat operasional pada modul /oas.',
+                                    ],
+                                    [
+                                        'Users',
+                                        'End Users (Internal & Eksternal)',
+                                        'Mengoperasikan TPS harian, menyusun laporan MIS, serta memanfaatkan layanan etalase.',
+                                        'Admin operasional & pelanggan etalase RAKIT (/dashboard).',
+                                    ],
+                                ].map(([group, role, duty, appMap]) => (
+                                    <tr key={role}>
+                                        <td className="font-mono text-[10px] uppercase text-lit">
+                                            {group}
+                                        </td>
+                                        <td className="font-medium text-chalk">{role}</td>
+                                        <td className="text-[12px] text-chalk-2">{duty}</td>
+                                        <td className="text-[12px] text-chalk-2">{appMap}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             </div>
         </ModuleLayout>
     );

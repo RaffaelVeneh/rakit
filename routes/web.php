@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HardwareController;
+use App\Http\Controllers\KmsController;
 use App\Http\Controllers\MsiController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\SoftwareController;
@@ -62,12 +63,22 @@ Route::post('/tps/store', [MsiController::class, 'tpsStore'])->name('tps.store')
 Route::post('/tps/process-batch', [MsiController::class, 'tpsProcessBatch'])->name('tps.batch');
 Route::get('/oas', [MsiController::class, 'oas'])->name('oas');
 Route::post('/oas/store', [MsiController::class, 'oasStore'])->name('oas.store');
+Route::post('/oas/tasks', [MsiController::class, 'oasTaskStore'])->name('oas.tasks.store');
+Route::patch('/oas/tasks/{oasTask}/toggle', [MsiController::class, 'oasTaskToggle'])->name('oas.tasks.toggle');
 Route::get('/mis', [MsiController::class, 'mis'])->name('mis');
 Route::get('/iss', [MsiController::class, 'iss'])->name('iss');
 Route::post('/iss/diagnose', [MsiController::class, 'issDiagnose'])->name('iss.diagnose');
+Route::post('/iss/eis-ask', [MsiController::class, 'issExecutiveAsk'])->name('iss.eis.ask');
 Route::get('/matrix', [MsiController::class, 'matrix'])->name('matrix');
 Route::get('/quiz', [MsiController::class, 'quiz'])->name('quiz');
 Route::post('/quiz/submit', [MsiController::class, 'quizSubmit'])->name('quiz.submit');
+
+// BAB X: Knowledge Management System & Chatbot
+Route::get('/kms', [KmsController::class, 'index'])->name('kms');
+Route::post('/kms/articles', [KmsController::class, 'storeArticle'])->name('kms.articles.store');
+Route::post('/kms/chatbot', [KmsController::class, 'storeChatbotRule'])->name('kms.chatbot.store');
+Route::delete('/kms/chatbot/{chatbotRule}', [KmsController::class, 'deleteChatbotRule'])->name('kms.chatbot.delete');
+Route::post('/chatbot/message', [KmsController::class, 'askChatbot'])->name('chatbot.message');
 
 // BAB III: Perangkat Keras Sistem
 Route::get('/hardware', [HardwareController::class, 'index'])->name('hardware.index');

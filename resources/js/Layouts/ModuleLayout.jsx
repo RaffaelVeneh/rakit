@@ -20,6 +20,7 @@ const SHEETS = [
     { label: 'TPS', href: '/tps', match: '/tps' },
     { label: 'OAS', href: '/oas', match: '/oas' },
     { label: 'MIS', href: '/mis', match: '/mis' },
+    { label: 'KMS', href: '/kms', match: '/kms' },
     { label: 'ISS', href: '/iss', match: '/iss' },
     { label: 'Matriks', href: '/matrix', match: '/matrix' },
 ];

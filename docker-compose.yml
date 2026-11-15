@@ -90,7 +90,7 @@ services:
       MYSQL_PASSWORD: msi_password
       MYSQL_ROOT_PASSWORD: root_password
     ports:
-      - "33060:3306"
+      - "33061:3306"
     # mysqladmin ping answers only when the server is accepting connections, which is
     # several seconds after the container has started. Without this, an app container
     # that depends on `db` starts too early and the first request fails on connection.

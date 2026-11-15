@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Box, Image as ImageIcon } from 'lucide-react';
 import ShopLayout from '@/Layouts/ShopLayout';
 import { Callout, Dim, PageBand, Plate, SectionHead } from '@/Components/Sheet';
 import { QtyStepper, Stamp, StatusLamp } from '@/Components/Controls';
 import { PlatePhoto } from '@/Components/PlatePhoto';
 import { RegisterList, RegisterTable } from '@/Components/Register';
+import TechScene from '@/Components/TechScene';
 import { partNo, position, stockState } from '@/lib/catalog';
 import { atWidth, srcSet } from '@/lib/images';
 import { amount, count, rupiah } from '@/lib/format';
@@ -23,6 +24,7 @@ export default function Product({ product, relatedProducts = [] }) {
     const [quantity, setQuantity] = useState(1);
     const [sending, setSending] = useState(false);
     const [busyId, setBusyId] = useState(null);
+    const [plateView, setPlateView] = useState('photo');
 
     const condition = stockState(product?.stock);
     const out = Number(product?.stock) <= 0;
@@ -98,18 +100,67 @@ export default function Product({ product, relatedProducts = [] }) {
                 <div className="grid gap-10 lg:grid-cols-12 lg:gap-12">
                     {/* The plate */}
                     <div className="lg:col-span-7">
-                        <Plate tab={`Piringan · ${product.category?.name || 'Katalog'}`}>
-                            <PlatePhoto
-                                src={atWidth(product.image, 1200) || product.image}
-                                srcSet={srcSet(product.image, [600, 900, 1200])}
-                                sizes="(min-width: 1024px) 58vw, 100vw"
-                                alt={`${product.name} — gambar rujukan katalog`}
-                                width="1200"
-                                height="1200"
-                                loading="eager"
-                                fallbackClassName="block aspect-square w-full"
-                                className="aspect-square w-full object-cover"
-                            />
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-3">
+                                Mode inspeksi piringan
+                            </span>
+                            <div className="inline-flex border border-ink bg-sheet">
+                                <button
+                                    type="button"
+                                    onClick={() => setPlateView('photo')}
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.14em] transition-colors ${
+                                        plateView === 'photo'
+                                            ? 'bg-ink text-sheet'
+                                            : 'text-ink-2 hover:text-ink'
+                                    }`}
+                                >
+                                    <ImageIcon className="h-3 w-3" />
+                                    Foto Pelat
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPlateView('cad3d')}
+                                    className={`inline-flex items-center gap-1.5 border-l border-ink px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.14em] transition-colors ${
+                                        plateView === 'cad3d'
+                                            ? 'bg-cyan text-sheet'
+                                            : 'text-ink-2 hover:text-cyan'
+                                    }`}
+                                >
+                                    <Box className="h-3 w-3" />
+                                    Skematik 3D CAD
+                                </button>
+                            </div>
+                        </div>
+
+                        <Plate
+                            tab={`Piringan · ${product.category?.name || 'Katalog'}${
+                                plateView === 'cad3d' ? ' · 3D CAD' : ''
+                            }`}
+                        >
+                            {plateView === 'cad3d' ? (
+                                <div className="relative bg-plot">
+                                    <TechScene
+                                        variant="component"
+                                        className="!h-[340px] sm:!h-[440px]"
+                                    />
+                                    <div className="flex items-center justify-between border-t border-line px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-chalk-2">
+                                        <span>Proyeksi Modul Silikon & Heatsink CAD</span>
+                                        <span className="text-lit">Gerakkan kursor untuk orbit</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <PlatePhoto
+                                    src={atWidth(product.image, 1200) || product.image}
+                                    srcSet={srcSet(product.image, [600, 900, 1200])}
+                                    sizes="(min-width: 1024px) 58vw, 100vw"
+                                    alt={`${product.name} — gambar rujukan katalog`}
+                                    width="1200"
+                                    height="1200"
+                                    loading="eager"
+                                    fallbackClassName="block aspect-square w-full"
+                                    className="aspect-square w-full object-cover"
+                                />
+                            )}
                         </Plate>
 
                         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:gap-8">

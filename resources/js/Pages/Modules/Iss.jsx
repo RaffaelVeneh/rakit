@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
-import { Cpu } from 'lucide-react';
+import { Cpu, Sparkles } from 'lucide-react';
 import ModuleLayout from '@/Layouts/ModuleLayout';
 import { Callout, PageBand, Readout, SectionHead, SheetHead, ZoneFrame } from '@/Components/Sheet';
 import { EmptyState, LabelledField, Select, Stamp, StatusLamp } from '@/Components/Controls';
+import TechScene from '@/Components/TechScene';
 import { notifyError } from '@/lib/notify';
-import { count } from '@/lib/format';
+import { count, rupiah } from '@/lib/format';
 
 /**
  * ISS — three instruments on one sheet at the strategic level: a goal-seeking
@@ -47,17 +48,33 @@ function Dollars({ value, className = '' }) {
     );
 }
 
-/** The knowledge base's own keys, in the order the sheet has always listed them. */
+/** The knowledge base's own keys, in the order the sheet lists them. */
 const PROBLEM_AREAS = [
     { value: 'sales_deviation', label: 'Deviasi kinerja tenaga penjualan (<$10K / >$50K)' },
     { value: 'tps_backlog', label: 'Antrean pemrosesan transaksi TPS' },
     { value: 'executive_delay', label: 'Keterlambatan analisis pengambilan keputusan senior' },
+    { value: 'pc_no_post', label: 'Rakitan PC: Gagal POST / Tidak tampil di layar (No Display)' },
+    { value: 'ram_mismatch', label: 'Rakitan PC: Ketidakstabilan XMP/EXPO & Konfigurasi Memori' },
+    { value: 'psu_unstable', label: 'Rakitan PC: Mati mendadak di bawah beban penuh GPU (PSU)' },
 ];
 
 const SYMPTOMS = [
     { value: 'high_variance', label: 'Variansi performa tinggi antar unit kerja' },
     { value: 'storage_delay', label: 'Beban transaksi online melebihi kapasitas I/O' },
     { value: 'unstructured_need', label: 'Kebutuhan simulasi skenario what-if' },
+    { value: 'no_video_beep', label: 'Kipas menyala namun monitor gelap / LED DRAM menyala' },
+    { value: 'boot_loop_xmp', label: 'Boot loop saat mengaktifkan profil kecepatan memori tinggi' },
+    { value: 'power_trip', label: 'Terdengar klik relay PSU saat game/render berjalan' },
+];
+
+const INFERENCE_MODES = [
+    { value: 'forward', label: 'Forward Chaining (Fakta → Kesimpulan)' },
+    { value: 'backward', label: 'Backward Chaining (Hipotesis → Verifikasi Bukti)' },
+];
+
+const KNOWLEDGE_TYPES = [
+    { value: 'factual', label: 'Pengetahuan Faktual (Aturan Deterministik)' },
+    { value: 'heuristic', label: 'Pengetahuan Heuristik (Aturan Praktis Pakar)' },
 ];
 
 const TOOLS = [
@@ -110,6 +127,12 @@ function readDiagnosis(...sources) {
                 recommendations: Array.isArray(candidate.recommendations)
                     ? candidate.recommendations
                     : [],
+                inferenceMode: candidate.inference_mode || 'forward',
+                knowledgeType: candidate.knowledge_type || 'factual',
+                confidence: candidate.confidence || null,
+                explanationTrace: Array.isArray(candidate.explanation_trace)
+                    ? candidate.explanation_trace
+                    : [],
             };
         }
     }
@@ -157,7 +180,7 @@ function ParameterSlider({ id, label, min, max, step, value, onChange }) {
     );
 }
 
-export default function Iss({ performances = [], regions = [] }) {
+export default function Iss({ performances = [], regions = [], eisAnalytics = null }) {
     const [tool, setTool] = useState('dss');
 
     // DSS goal seeking.
@@ -166,12 +189,18 @@ export default function Iss({ performances = [], regions = [] }) {
     const [unitCost, setUnitCost] = useState(150);
     const [fixedCost, setFixedCost] = useState(20000);
 
-    // EIS drill-down.
+    // EIS drill-down & executive Q&A.
     const [region, setRegion] = useState('all');
+    const [selectedCategoryId, setSelectedCategoryId] = useState('all');
+    const [eisQuestion, setEisQuestion] = useState('');
+    const [eisAsking, setEisAsking] = useState(false);
+    const [eisAnswer, setEisAnswer] = useState(null);
 
     // Expert system.
     const [problemArea, setProblemArea] = useState('sales_deviation');
     const [symptom, setSymptom] = useState('high_variance');
+    const [inferenceMode, setInferenceMode] = useState('forward');
+    const [knowledgeType, setKnowledgeType] = useState('factual');
     const [running, setRunning] = useState(false);
     const [diagnosis, setDiagnosis] = useState(null);
 
@@ -216,7 +245,13 @@ export default function Iss({ performances = [], regions = [] }) {
 
         router.post(
             '/iss/diagnose',
-            { problem_area: problemArea, symptom, severity: ES_SEVERITY },
+            {
+                problem_area: problemArea,
+                symptom,
+                severity: ES_SEVERITY,
+                inference_mode: inferenceMode,
+                knowledge_type: knowledgeType,
+            },
             {
                 preserveScroll: true,
                 preserveState: true,
@@ -259,6 +294,36 @@ export default function Iss({ performances = [], regions = [] }) {
                 onFinish: () => setRunning(false),
             },
         );
+    };
+
+    const eisSummary = eisAnalytics?.summary || null;
+    const eisCategories = eisAnalytics?.by_category || [];
+    const eisProducts = useMemo(() => {
+        const list = eisAnalytics?.top_products || [];
+        if (selectedCategoryId === 'all') {
+            return list;
+        }
+        return list.filter((p) => String(p.category_id) === String(selectedCategoryId));
+    }, [eisAnalytics, selectedCategoryId]);
+
+    const askExecutive = async (event) => {
+        event.preventDefault();
+        const q = eisQuestion.trim();
+        if (!q || eisAsking) {
+            return;
+        }
+        setEisAsking(true);
+        try {
+            const response = await window.axios.post('/iss/eis-ask', { question: q });
+            setEisAnswer(response.data);
+        } catch {
+            notifyError(
+                'Analisis EIS gagal',
+                'Tidak dapat membaca ringkasan analitik eksekutif saat ini.',
+            );
+        } finally {
+            setEisAsking(false);
+        }
     };
 
     const resultState = running
@@ -304,7 +369,15 @@ export default function Iss({ performances = [], regions = [] }) {
                         ))}
                     </div>
                 }
-            />
+            >
+                <div className="mt-5 border border-line-2 bg-plot">
+                    <div className="flex items-center justify-between border-b border-line px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-chalk-2">
+                        <span>Kubus Telemetri Keputusan 3D · DSS / EIS / ES</span>
+                        <span className="text-lit">Interaktif · Pointer</span>
+                    </div>
+                    <TechScene variant="iss" className="!h-[180px]" />
+                </div>
+            </PageBand>
 
             <div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 lg:px-8">
                 {/* ── DSS: the goal-seeking model ───────────────────────────── */}
@@ -423,13 +496,210 @@ export default function Iss({ performances = [], regions = [] }) {
                     </section>
                 )}
 
-                {/* ── EIS: drill-down from the aggregate to the region ──────── */}
+                {/* ── EIS: drill-down from the aggregate to categories & regions ──────── */}
                 {tool === 'eis' && (
-                    <section>
-                        <SectionHead
-                            title="Penelusuran kinerja per wilayah"
-                            meta={`${count(rows.length)} baris kinerja`}
-                        />
+                    <section className="space-y-8">
+                        {eisSummary && (
+                            <div>
+                                <SectionHead
+                                    title="Ringkasan eksekutif etalase RAKIT (Bab XII)"
+                                    meta="Agregat langsung transaksi & inventaris MySQL"
+                                />
+
+                                <div className="mt-4 grid gap-px border border-line-2 bg-line sm:grid-cols-2 lg:grid-cols-4">
+                                    <div className="bg-plot-2 px-4 py-3">
+                                        <span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-chalk-2">
+                                            Total Pesanan Etalase
+                                        </span>
+                                        <span className="mt-1 block font-mono text-lg font-medium text-chalk">
+                                            {count(eisSummary.total_orders)} order
+                                        </span>
+                                    </div>
+                                    <div className="bg-plot-2 px-4 py-3">
+                                        <span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-chalk-2">
+                                            Akumulasi Omzet
+                                        </span>
+                                        <span className="mt-1 block font-mono text-lg font-medium text-lit">
+                                            {rupiah(eisSummary.total_revenue)}
+                                        </span>
+                                    </div>
+                                    <div className="bg-plot-2 px-4 py-3">
+                                        <span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-chalk-2">
+                                            Rata-Rata Nilai Pesanan
+                                        </span>
+                                        <span className="mt-1 block font-mono text-lg font-medium text-chalk">
+                                            {rupiah(eisSummary.avg_order_value)}
+                                        </span>
+                                    </div>
+                                    <div className="bg-plot-2 px-4 py-3">
+                                        <span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-chalk-2">
+                                            SKU Aktif · Stok Kritis (≤5)
+                                        </span>
+                                        <span className="mt-1 block font-mono text-lg font-medium text-chalk">
+                                            {count(eisSummary.total_skus)}{' '}
+                                            <span className="text-[12px] text-lit-red">
+                                                ({count(eisSummary.low_stock_skus)} menipis)
+                                            </span>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="mt-5 grid gap-6 lg:grid-cols-12">
+                                    <div className="register lg:col-span-5">
+                                        <SheetHead
+                                            tone="plot"
+                                            label="Drill-down kategori (klik baris)"
+                                            action={
+                                                selectedCategoryId !== 'all' ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedCategoryId('all')}
+                                                        className="font-mono text-[10px] uppercase tracking-[0.12em] text-lit hover:underline"
+                                                    >
+                                                        Reset filter
+                                                    </button>
+                                                ) : null
+                                            }
+                                        />
+                                        <div className="overflow-x-auto">
+                                            <table className="data-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th scope="col">Kategori</th>
+                                                        <th scope="col" className="text-right">
+                                                            Unit
+                                                        </th>
+                                                        <th scope="col" className="text-right">
+                                                            Omzet
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {eisCategories.map((cat) => {
+                                                        const active =
+                                                            String(selectedCategoryId) ===
+                                                            String(cat.id);
+                                                        return (
+                                                            <tr
+                                                                key={cat.id}
+                                                                onClick={() =>
+                                                                    setSelectedCategoryId(
+                                                                        active ? 'all' : cat.id,
+                                                                    )
+                                                                }
+                                                                className={`cursor-pointer ${
+                                                                    active ? 'bg-plot-3' : ''
+                                                                }`}
+                                                            >
+                                                                <td
+                                                                    className={
+                                                                        active
+                                                                            ? 'font-medium text-lit'
+                                                                            : 'text-chalk'
+                                                                    }
+                                                                >
+                                                                    {cat.title}
+                                                                </td>
+                                                                <td className="num text-chalk-2">
+                                                                    {count(cat.units_sold)}
+                                                                </td>
+                                                                <td className="num text-chalk">
+                                                                    {rupiah(cat.revenue)}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <div className="register lg:col-span-7">
+                                        <SheetHead
+                                            tone="plot"
+                                            label="Produk terlaris per irisan kategori"
+                                            readouts={[
+                                                { label: 'Baris', value: count(eisProducts.length) },
+                                            ]}
+                                        />
+                                        <div className="overflow-x-auto">
+                                            <table className="data-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th scope="col">Produk</th>
+                                                        <th scope="col">Kategori</th>
+                                                        <th scope="col" className="text-right">
+                                                            Terjual
+                                                        </th>
+                                                        <th scope="col" className="text-right">
+                                                            Omzet
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {eisProducts.map((prod) => (
+                                                        <tr key={prod.id}>
+                                                            <td className="text-chalk">{prod.title}</td>
+                                                            <td className="font-mono text-[10px] text-chalk-2">
+                                                                {prod.category_title}
+                                                            </td>
+                                                            <td className="num text-chalk-2">
+                                                                {count(prod.units_sold)}
+                                                            </td>
+                                                            <td className="num text-lit">
+                                                                {rupiah(prod.revenue)}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <ZoneFrame className="mt-5 bg-plot-2">
+                                    <SheetHead
+                                        tone="plot"
+                                        label="Tanya-jawab ad-hoc eksekutif (rakitGPT / EIS Lokal)"
+                                    />
+                                    <div className="p-4">
+                                        <form
+                                            onSubmit={askExecutive}
+                                            className="flex flex-col gap-2 sm:flex-row"
+                                        >
+                                            <input
+                                                type="text"
+                                                value={eisQuestion}
+                                                onChange={(e) => setEisQuestion(e.target.value)}
+                                                placeholder="Tanyakan tren kategori, stok kritis, atau prioritas ekspansi..."
+                                                className="min-w-0 flex-1 border border-line-2 bg-plot px-3 py-2 text-[12.5px] text-chalk placeholder:text-chalk-3 focus:border-lit focus:outline-none"
+                                            />
+                                            <Stamp type="submit" disabled={eisAsking}>
+                                                <Sparkles className="h-3.5 w-3.5" />
+                                                {eisAsking ? 'Menganalisis…' : 'Analisis EIS'}
+                                            </Stamp>
+                                        </form>
+
+                                        {eisAnswer && (
+                                            <div className="mt-4 border-l-2 border-lit bg-plot px-4 py-3">
+                                                <span className="block font-mono text-[9px] uppercase tracking-[0.14em] text-lit">
+                                                    Sumber: {eisAnswer.source} ({eisAnswer.model})
+                                                </span>
+                                                <p className="mt-1.5 whitespace-pre-line text-[13px] leading-relaxed text-chalk">
+                                                    {eisAnswer.answer}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </ZoneFrame>
+                            </div>
+                        )}
+
+                        <div>
+                            <SectionHead
+                                title="Penelusuran kinerja per wilayah"
+                                meta={`${count(rows.length)} baris kinerja`}
+                            />
 
                         <div className="mt-4 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border border-line-2 bg-plot-2 px-4 py-3">
                             <div className="w-full sm:w-auto sm:min-w-[240px]">
@@ -548,6 +818,7 @@ export default function Iss({ performances = [], regions = [] }) {
                                 description="Tidak ada baris kinerja yang tercatat pada wilayah ini. Pilih wilayah lain, atau pilih semua wilayah untuk membaca agregat nasional."
                             />
                         )}
+                        </div>
                     </section>
                 )}
 
@@ -590,6 +861,50 @@ export default function Iss({ performances = [], regions = [] }) {
                                                 >
                                                     {SYMPTOMS.map((entry) => (
                                                         <option key={entry.value} value={entry.value}>
+                                                            {entry.label}
+                                                        </option>
+                                                    ))}
+                                                </Select>
+                                            </LabelledField>
+                                        </div>
+
+                                        <div className="mt-4">
+                                            <LabelledField label="Mesin inferensi (Bab XIII)">
+                                                <Select
+                                                    id="es-inference-mode"
+                                                    className="text-[12px]"
+                                                    value={inferenceMode}
+                                                    onChange={(event) =>
+                                                        setInferenceMode(event.target.value)
+                                                    }
+                                                >
+                                                    {INFERENCE_MODES.map((entry) => (
+                                                        <option
+                                                            key={entry.value}
+                                                            value={entry.value}
+                                                        >
+                                                            {entry.label}
+                                                        </option>
+                                                    ))}
+                                                </Select>
+                                            </LabelledField>
+                                        </div>
+
+                                        <div className="mt-4">
+                                            <LabelledField label="Tipe pengetahuan basis aturan">
+                                                <Select
+                                                    id="es-knowledge-type"
+                                                    className="text-[12px]"
+                                                    value={knowledgeType}
+                                                    onChange={(event) =>
+                                                        setKnowledgeType(event.target.value)
+                                                    }
+                                                >
+                                                    {KNOWLEDGE_TYPES.map((entry) => (
+                                                        <option
+                                                            key={entry.value}
+                                                            value={entry.value}
+                                                        >
                                                             {entry.label}
                                                         </option>
                                                     ))}
@@ -666,6 +981,38 @@ export default function Iss({ performances = [], regions = [] }) {
                                                         ),
                                                     )}
                                                 </ol>
+
+                                                {diagnosis.explanationTrace &&
+                                                    diagnosis.explanationTrace.length > 0 && (
+                                                        <div className="mt-5 border border-line-2 bg-plot px-3.5 py-3">
+                                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                                <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-lit">
+                                                                    Fasilitas Penjelasan (Explanation Trace ·{' '}
+                                                                    {diagnosis.inferenceMode === 'backward'
+                                                                        ? 'Backward Chaining'
+                                                                        : 'Forward Chaining'}
+                                                                    )
+                                                                </span>
+                                                                {diagnosis.confidence && (
+                                                                    <span className="font-mono text-[9px] text-chalk-2">
+                                                                        {diagnosis.confidence}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <ul className="mt-2 space-y-1">
+                                                                {diagnosis.explanationTrace.map(
+                                                                    (step) => (
+                                                                        <li
+                                                                            key={step}
+                                                                            className="font-mono text-[11px] leading-relaxed text-chalk-2"
+                                                                        >
+                                                                            {step}
+                                                                        </li>
+                                                                    ),
+                                                                )}
+                                                            </ul>
+                                                        </div>
+                                                    )}
                                             </>
                                         ) : (
                                             <p className="max-w-[64ch] text-[12px] leading-relaxed text-chalk-2">

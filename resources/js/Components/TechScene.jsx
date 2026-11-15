@@ -31,6 +31,21 @@ const VARIANTS = {
         look: [0, 0, 0],
         accent: 0xa78bfa,
     },
+    kms: {
+        camera: [0, 0.6, 5.1],
+        look: [0, 0, 0],
+        accent: 0x7aa2ff,
+    },
+    iss: {
+        camera: [2.1, 1.4, 4.8],
+        look: [0, 0, 0],
+        accent: 0x7aa2ff,
+    },
+    component: {
+        camera: [2.45, 2.05, 4.4],
+        look: [0, 0.1, 0],
+        accent: 0x7aa2ff,
+    },
 };
 
 function makeGlowTexture(THREE) {
@@ -440,6 +455,255 @@ function buildSoftware(THREE, rig, glowTexture) {
     };
 }
 
+function buildKms(THREE, rig, glowTexture) {
+    const lattice = new THREE.Group();
+    rig.add(lattice);
+
+    const coreGeom = new THREE.OctahedronGeometry(0.68, 0);
+    const coreMesh = new THREE.Mesh(
+        coreGeom,
+        new THREE.MeshStandardMaterial({
+            color: 0x1e40af,
+            emissive: 0x4f7dff,
+            emissiveIntensity: 0.75,
+            roughness: 0.25,
+            metalness: 0.55,
+            transparent: true,
+            opacity: 0.88,
+        }),
+    );
+    lattice.add(coreMesh);
+    lattice.add(
+        new THREE.LineSegments(
+            new THREE.EdgesGeometry(coreGeom),
+            new THREE.LineBasicMaterial({ color: 0xa8c2ff, transparent: true, opacity: 0.85 }),
+        ),
+    );
+
+    const ringSpecs = [
+        { radius: 1.38, color: 0x7aa2ff, tilt: [0.6, 0.25, 0], speed: 0.28 },
+        { radius: 1.72, color: 0xa78bfa, tilt: [-0.55, 0.4, 0.5], speed: -0.22 },
+        { radius: 2.05, color: 0x38bdf8, tilt: [1.1, -0.35, 0.2], speed: 0.15 },
+    ];
+
+    const orbitalGroups = ringSpecs.map((spec) => {
+        const grp = new THREE.Group();
+        grp.rotation.set(...spec.tilt);
+        const torus = new THREE.Mesh(
+            new THREE.TorusGeometry(spec.radius, 0.012, 8, 96),
+            new THREE.MeshBasicMaterial({ color: spec.color, transparent: true, opacity: 0.55 }),
+        );
+        grp.add(torus);
+
+        for (let i = 0; i < 4; i += 1) {
+            const angle = (i / 4) * Math.PI * 2;
+            const node = new THREE.Mesh(
+                new THREE.OctahedronGeometry(0.08, 0),
+                new THREE.MeshBasicMaterial({ color: 0xdee6ee }),
+            );
+            node.position.set(Math.cos(angle) * spec.radius, Math.sin(angle) * spec.radius, 0);
+            grp.add(node);
+
+            const lineGeom = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(0, 0, 0),
+                node.position.clone(),
+            ]);
+            grp.add(
+                new THREE.Line(
+                    lineGeom,
+                    new THREE.LineBasicMaterial({
+                        color: spec.color,
+                        transparent: true,
+                        opacity: 0.28,
+                    }),
+                ),
+            );
+        }
+
+        lattice.add(grp);
+        return { grp, speed: spec.speed };
+    });
+
+    const glow = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+            map: glowTexture,
+            color: 0x7aa2ff,
+            transparent: true,
+            opacity: 0.5,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+        }),
+    );
+    glow.scale.set(4.8, 4.8, 1);
+    rig.add(glow);
+
+    return (delta, elapsed) => {
+        coreMesh.rotation.y = elapsed * 0.45;
+        coreMesh.rotation.x = Math.sin(elapsed * 0.4) * 0.2;
+        orbitalGroups.forEach((item) => {
+            item.grp.rotation.z = elapsed * item.speed;
+        });
+    };
+}
+
+function buildIss(THREE, rig, glowTexture) {
+    const unit = new THREE.Group();
+    rig.add(unit);
+
+    const outerCube = new THREE.BoxGeometry(2.1, 2.1, 2.1);
+    unit.add(
+        new THREE.LineSegments(
+            new THREE.EdgesGeometry(outerCube),
+            new THREE.LineBasicMaterial({ color: 0x7aa2ff, transparent: true, opacity: 0.45 }),
+        ),
+    );
+
+    const innerCube = new THREE.BoxGeometry(1.32, 1.32, 1.32);
+    const innerWire = new THREE.LineSegments(
+        new THREE.EdgesGeometry(innerCube),
+        new THREE.LineBasicMaterial({ color: 0xa8c2ff, transparent: true, opacity: 0.72 }),
+    );
+    unit.add(innerWire);
+
+    const gimbalA = new THREE.Mesh(
+        new THREE.TorusGeometry(1.55, 0.012, 8, 84),
+        new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.52 }),
+    );
+    const gimbalB = new THREE.Mesh(
+        new THREE.TorusGeometry(1.22, 0.01, 8, 84),
+        new THREE.MeshBasicMaterial({ color: 0xff7a5c, transparent: true, opacity: 0.48 }),
+    );
+    gimbalB.rotation.x = Math.PI / 2;
+    unit.add(gimbalA, gimbalB);
+
+    const crystal = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(0.46, 0),
+        new THREE.MeshStandardMaterial({
+            color: 0x0e3a8f,
+            emissive: 0x5c85ff,
+            emissiveIntensity: 0.85,
+            roughness: 0.2,
+            metalness: 0.65,
+        }),
+    );
+    unit.add(crystal);
+
+    const glow = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+            map: glowTexture,
+            color: 0x7aa2ff,
+            transparent: true,
+            opacity: 0.45,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+        }),
+    );
+    glow.scale.set(4.5, 4.5, 1);
+    rig.add(glow);
+
+    return (delta, elapsed) => {
+        unit.rotation.y = elapsed * 0.2;
+        innerWire.rotation.x = elapsed * 0.35;
+        gimbalA.rotation.x = elapsed * 0.42;
+        gimbalB.rotation.y = -elapsed * 0.36;
+        crystal.rotation.y = -elapsed * 0.6;
+    };
+}
+
+function buildComponent(THREE, rig, glowTexture, light) {
+    const lineColor = light ? 0x0e3a8f : 0x7aa2ff;
+    const secondaryLine = light ? 0x0a2a69 : 0xa8c2ff;
+    const plateColor = light ? 0xdce5f6 : 0x0f1821;
+    const dieColor = light ? 0x0e3a8f : 0x1d4ed8;
+
+    const module = new THREE.Group();
+    rig.add(module);
+
+    // Base PCB substrate plate
+    const pcbGeom = new THREE.BoxGeometry(2.6, 0.14, 1.9);
+    const pcb = new THREE.Mesh(
+        pcbGeom,
+        new THREE.MeshStandardMaterial({
+            color: plateColor,
+            metalness: 0.35,
+            roughness: 0.45,
+            transparent: true,
+            opacity: light ? 0.92 : 0.96,
+        }),
+    );
+    pcb.position.y = -0.45;
+    module.add(pcb);
+    const pcbEdges = new THREE.LineSegments(
+        new THREE.EdgesGeometry(pcbGeom),
+        new THREE.LineBasicMaterial({ color: lineColor, transparent: true, opacity: 0.85 }),
+    );
+    pcbEdges.position.copy(pcb.position);
+    module.add(pcbEdges);
+
+    // Silicon package interposer & die
+    const dieGeom = new THREE.BoxGeometry(1.15, 0.22, 1.15);
+    const die = new THREE.Mesh(
+        dieGeom,
+        new THREE.MeshStandardMaterial({
+            color: dieColor,
+            emissive: lineColor,
+            emissiveIntensity: light ? 0.22 : 0.65,
+            metalness: 0.7,
+            roughness: 0.22,
+        }),
+    );
+    die.position.y = -0.24;
+    module.add(die);
+    const dieEdges = new THREE.LineSegments(
+        new THREE.EdgesGeometry(dieGeom),
+        new THREE.LineBasicMaterial({ color: secondaryLine, transparent: true, opacity: 0.95 }),
+    );
+    dieEdges.position.copy(die.position);
+    module.add(dieEdges);
+
+    // Floating CAD heatsink fin array above the silicon die
+    const heatsink = new THREE.Group();
+    heatsink.position.y = 0.42;
+    const finGeom = new THREE.BoxGeometry(0.05, 0.48, 1.38);
+    for (let i = -4; i <= 4; i += 1) {
+        const finEdge = new THREE.LineSegments(
+            new THREE.EdgesGeometry(finGeom),
+            new THREE.LineBasicMaterial({ color: lineColor, transparent: true, opacity: 0.75 }),
+        );
+        finEdge.position.x = i * 0.22;
+        heatsink.add(finEdge);
+    }
+    module.add(heatsink);
+
+    // Orbiting CAD calibration reticle ring
+    const reticle = new THREE.Mesh(
+        new THREE.TorusGeometry(1.95, 0.01, 8, 96),
+        new THREE.MeshBasicMaterial({ color: lineColor, transparent: true, opacity: 0.45 }),
+    );
+    reticle.rotation.x = Math.PI / 2;
+    reticle.position.y = -0.45;
+    module.add(reticle);
+
+    const glow = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+            map: glowTexture,
+            color: lineColor,
+            transparent: true,
+            opacity: light ? 0.2 : 0.42,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+        }),
+    );
+    glow.scale.set(4.5, 4.5, 1);
+    rig.add(glow);
+
+    return (delta, elapsed) => {
+        module.rotation.y = elapsed * 0.28;
+        heatsink.position.y = 0.42 + Math.sin(elapsed * 1.1) * 0.06;
+        reticle.rotation.z = -elapsed * 0.18;
+    };
+}
+
 function buildScene(THREE, host, variant, { reducedRef, readyRef, failRef, theme }) {
     const spec = VARIANTS[variant] || VARIANTS.admin;
     const light = theme === 'sheet';
@@ -513,14 +777,20 @@ function buildScene(THREE, host, variant, { reducedRef, readyRef, failRef, theme
             ? buildHardware(THREE, rig, glowTexture)
             : variant === 'software'
               ? buildSoftware(THREE, rig, glowTexture)
-              : buildAdmin(THREE, rig, glowTexture, light);
+              : variant === 'kms'
+                ? buildKms(THREE, rig, glowTexture)
+                : variant === 'iss'
+                  ? buildIss(THREE, rig, glowTexture)
+                  : variant === 'component'
+                    ? buildComponent(THREE, rig, glowTexture, light)
+                    : buildAdmin(THREE, rig, glowTexture, light);
 
     const particles = addParticles(
         THREE,
         rig,
         glowTexture,
         120,
-        variant === 'admin' && light ? 0x0e3a8f : spec.accent,
+        (variant === 'admin' || variant === 'component') && light ? 0x0e3a8f : spec.accent,
     );
     track(particles);
 

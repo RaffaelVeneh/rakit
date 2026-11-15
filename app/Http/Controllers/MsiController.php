@@ -3,10 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\OasMemo;
+use App\Models\OasTask;
+use App\Models\Order;
+use App\Models\Product;
 use App\Models\SalesPerformance;
 use App\Models\Transaction;
+use App\Models\User;
+use App\Services\DeepSeekService;
+use App\Support\ModuleQuizBank;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class MsiController extends Controller
@@ -122,8 +130,12 @@ class MsiController extends Controller
     public function oas()
     {
         $memos = OasMemo::latest()->get();
+        $tasks = OasTask::query()
+            ->orderBy('status')
+            ->orderBy('due_date')
+            ->get();
 
-        return Inertia::render('Modules/Oas', compact('memos'));
+        return Inertia::render('Modules/Oas', compact('memos', 'tasks'));
     }
 
     /**
@@ -144,6 +156,39 @@ class MsiController extends Controller
         OasMemo::create($validated);
 
         return redirect()->route('oas')->with('success', 'Dokumen/Memo internal OAS berhasil diterbitkan dan didistribusikan ke pekerja administrasi.');
+    }
+
+    /**
+     * OAS: Store scheduled task & deadline (Bab IX)
+     */
+    public function oasTaskStore(Request $request)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:200',
+            'assignee' => 'required|string|max:100',
+            'department' => 'required|string|max:100',
+            'due_date' => 'required|date',
+            'priority' => 'required|in:normal,urgent',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        OasTask::create([
+            ...$validated,
+            'status' => 'open',
+        ]);
+
+        return redirect()->route('oas')->with('success', 'Tugas & tenggat kerja OAS berhasil dijadwalkan.');
+    }
+
+    /**
+     * OAS: Toggle task completion status
+     */
+    public function oasTaskToggle(OasTask $oasTask)
+    {
+        $oasTask->status = $oasTask->status === 'done' ? 'open' : 'done';
+        $oasTask->save();
+
+        return redirect()->route('oas')->with('success', "Status tugas '{$oasTask->title}' diperbarui menjadi {$oasTask->status}.");
     }
 
     /**
@@ -183,24 +228,59 @@ class MsiController extends Controller
     {
         $performances = SalesPerformance::all();
         $regions = $performances->pluck('region')->unique();
+        $eisAnalytics = $this->buildEisAnalytics($performances);
 
-        return Inertia::render('Modules/Iss', compact('performances', 'regions'));
+        return Inertia::render('Modules/Iss', compact('performances', 'regions', 'eisAnalytics'));
     }
 
     /**
-     * Expert System Inference Engine (Mini Rule-Based AI)
+     * Answer an executive analytical question against real EIS aggregates (Bab XII).
+     */
+    public function issExecutiveAsk(Request $request, DeepSeekService $deepSeek): JsonResponse
+    {
+        $validated = $request->validate([
+            'question' => 'required|string|max:500',
+        ]);
+
+        $performances = SalesPerformance::all();
+        $eisAnalytics = $this->buildEisAnalytics($performances);
+        $topCategory = $eisAnalytics['by_category'][0]['title'] ?? '-';
+        $topRegion = $performances->sortByDesc('actual_sales')->first()?->region ?? '-';
+
+        $payload = [
+            ...$eisAnalytics['summary'],
+            'top_category' => $topCategory,
+            'top_region' => $topRegion,
+            'by_category' => $eisAnalytics['by_category'],
+            'by_status' => $eisAnalytics['by_status'],
+        ];
+
+        $result = $deepSeek->askExecutiveQuestion($validated['question'], $payload);
+
+        return response()->json($result);
+    }
+
+    /**
+     * Expert System Inference Engine (Forward/Backward Chaining + Factual/Heuristic KB + Explanation Trace)
      */
     public function issDiagnose(Request $request)
     {
-        $problemArea = $request->input('problem_area');
-        $symptom = $request->input('symptom');
-        $severity = $request->input('severity');
+        $problemArea = (string) $request->input('problem_area', '');
+        $symptom = (string) $request->input('symptom', '');
+        $severity = (string) $request->input('severity', 'high');
+        $inferenceMode = in_array($request->input('inference_mode'), ['forward', 'backward'], true)
+            ? (string) $request->input('inference_mode')
+            : 'forward';
+        $knowledgeType = in_array($request->input('knowledge_type'), ['factual', 'heuristic'], true)
+            ? (string) $request->input('knowledge_type')
+            : 'factual';
 
         $diagnosis = '';
         $recommendation = [];
         $ruleFired = '';
+        $confidence = $knowledgeType === 'factual' ? '100% (Factual Deterministik)' : '88% (Heuristik Pakar)';
 
-        // Rule-Based Knowledge Base
+        // Rule-Based Knowledge Base (IS Organizational + RAKIT Hardware Diagnostics)
         if ($problemArea === 'tps_backlog') {
             $ruleFired = 'RULE-01: TPS Throughput & Mode Optimization';
             $diagnosis = 'Terjadi antrean pemrosesan data transaksi karena beban mode online melebihi kapasitas IOPS storage.';
@@ -225,6 +305,30 @@ class MsiController extends Controller
                 'Sediakan fitur drill-down satu-klik dari agregat level korporat ke detail cabang/unit bisnis.',
                 'Gunakan model GDSS (Group Decision Support System) untuk kolaborasi rapat strategis dewan direksi.',
             ];
+        } elseif ($problemArea === 'pc_no_post') {
+            $ruleFired = 'RULE-05: Hardware No-POST & BIOS Initialization';
+            $diagnosis = 'Sistem gagal melewati fase Power-On Self Test (POST) akibat konflik RAM/CMOS, kabel daya EPS 8-pin longgar, atau versi BIOS belum mendukung generasi CPU.';
+            $recommendation = [
+                'Lakukan Clear CMOS dan uji menyalakan sistem dengan konfigurasi minimal (1 keping RAM pada slot A2).',
+                'Pastikan konektor 24-pin ATX serta 8-pin EPS CPU terpasang penuh hingga mengunci.',
+                'Verifikasi dukungan revisi BIOS motherboard; gunakan BIOS Flashback apabila memakai CPU generasi terbaru.',
+            ];
+        } elseif ($problemArea === 'ram_mismatch') {
+            $ruleFired = 'RULE-06: Memory Bus & XMP/EXPO Instability';
+            $diagnosis = 'Konfigurasi memori mengalami ketidakstabilan timing/voltase controller memori (sering terjadi pada 4-DIMM frekuensi tinggi atau pencampuran kit berbeda).';
+            $recommendation = [
+                'Gunakan maksimal 2 modul kit identik (Dual-Channel slot A2/B2) sesuai daftar QVL motherboard.',
+                'Turunkan frekuensi profil XMP/EXPO satu tingkat di bawah spesifikasi puncak (mis. 6000 MT/s -> 5600 MT/s).',
+                'Perbarui AGESA/Microcode BIOS untuk meningkatkan stabilitas memory training.',
+            ];
+        } elseif ($problemArea === 'psu_unstable') {
+            $ruleFired = 'RULE-07: Power Headroom & Transient Spike Protection';
+            $diagnosis = 'Unit catu daya mengalami pemicu OCP/OPP akibat lonjakan daya transien GPU melebihi headroom kontinyu rail +12V.';
+            $recommendation = [
+                'Hitung ulang beban puncak: (TDP CPU + TBP GPU + 120W) × 1,30 untuk menyisakan headroom minimal 30%.',
+                'Pisahkan kabel daya PCIe per konektor GPU (hindari daisy-chain splitter).',
+                'Pertimbangkan upgrade ke unit PSU 80+ Gold/Platinum berstandar ATX 3.0/3.1.',
+            ];
         } else {
             $ruleFired = 'RULE-04: General Information Flow Alignment';
             $diagnosis = 'Ketidakharmonisan aliran data antara level Operasional (TPS) dan level Taktis (MIS).';
@@ -234,22 +338,128 @@ class MsiController extends Controller
             ];
         }
 
-        // Answered as an Inertia round trip rather than a bare JSON body: the
-        // sheet that consumes it is a React page, and a plain JSON 200 would be
-        // handed to Inertia's error path instead of its success path. The
-        // diagnosis rides the session flash, which HandleInertiaRequests shares.
-        //
-        // Redirected to the sheet by name, not with `back()`. `back()` resolves the
-        // Referer or the session's previous URL and falls through to `/` — so the
-        // verdict was landing on the storefront while the reader sat on the ISS
-        // sheet, which is why the result panel stayed empty.
+        $explanationTrace = $inferenceMode === 'backward'
+            ? [
+                "1. [GOAL] Hipotesis target diuji: {$ruleFired}.",
+                "2. [BASIS PENGETAHUAN] Tipe aturan: {$knowledgeType} | Domain={$problemArea} | Gejala={$symptom} | Severity={$severity}.",
+                '3. [VERIFIKASI SUB-TUJUAN] Bukti observasi lapangan cocok dengan premis aturan sehingga hipotesis diterima.',
+                "4. [KESIMPULAN] {$diagnosis}",
+            ]
+            : [
+                "1. [OBSERVASI DATA] Premis masukan diterima: Domain={$problemArea}, Gejala={$symptom}, Severity={$severity}.",
+                "2. [WORKING MEMORY] Mesin inferensi mencocokkan fakta pada basis pengetahuan bertipe {$knowledgeType}.",
+                "3. [ATURAN TERPICU] {$ruleFired}.",
+                "4. [AKSI] Menghasilkan diagnosis dengan tingkat keyakinan {$confidence} beserta rekomendasi bertahap.",
+            ];
+
         return redirect()
             ->route('iss')
             ->with('diagnosis', [
                 'rule_fired' => $ruleFired,
                 'diagnosis' => $diagnosis,
                 'recommendations' => $recommendation,
+                'inference_mode' => $inferenceMode,
+                'knowledge_type' => $knowledgeType,
+                'confidence' => $confidence,
+                'explanation_trace' => $explanationTrace,
             ]);
+    }
+
+    /**
+     * Aggregate real storefront EIS metrics across orders, products, and categories (Bab XII).
+     *
+     * @return array<string, mixed>
+     */
+    private function buildEisAnalytics($performances): array
+    {
+        $totalOrders = Order::query()->count();
+        $paidRevenue = (float) Order::query()->sum('total_amount');
+        $pendingOrders = Order::query()->where('status', 'pending')->count();
+        $avgOrderValue = $totalOrders > 0 ? round($paidRevenue / $totalOrders, 0) : 0;
+
+        $byCategory = DB::table('categories')
+            ->leftJoin('products', 'products.category_id', '=', 'categories.id')
+            ->leftJoin('order_items', 'order_items.product_id', '=', 'products.id')
+            ->select(
+                'categories.id',
+                'categories.name',
+                DB::raw('COUNT(DISTINCT products.id) as sku_count'),
+                DB::raw('COALESCE(SUM(order_items.quantity), 0) as units_sold'),
+                DB::raw('COALESCE(SUM(order_items.quantity * order_items.price), 0) as revenue')
+            )
+            ->groupBy('categories.id', 'categories.name')
+            ->orderByDesc('revenue')
+            ->get()
+            ->map(fn ($row): array => [
+                'id' => (int) $row->id,
+                'title' => (string) $row->name,
+                'sku_count' => (int) $row->sku_count,
+                'units_sold' => (int) $row->units_sold,
+                'revenue' => (float) $row->revenue,
+            ])
+            ->values()
+            ->all();
+
+        $topProducts = DB::table('order_items')
+            ->join('products', 'products.id', '=', 'order_items.product_id')
+            ->leftJoin('categories', 'categories.id', '=', 'products.category_id')
+            ->select(
+                'products.id',
+                'products.name',
+                'products.category_id',
+                DB::raw("COALESCE(categories.name, 'Umum') as category_title"),
+                'products.stock',
+                DB::raw('SUM(order_items.quantity) as units_sold'),
+                DB::raw('SUM(order_items.quantity * order_items.price) as revenue')
+            )
+            ->groupBy('products.id', 'products.name', 'products.category_id', 'categories.name', 'products.stock')
+            ->orderByDesc('revenue')
+            ->limit(10)
+            ->get()
+            ->map(fn ($row): array => [
+                'id' => (int) $row->id,
+                'title' => (string) $row->name,
+                'category_id' => (int) $row->category_id,
+                'category_title' => (string) $row->category_title,
+                'stock' => (int) $row->stock,
+                'units_sold' => (int) $row->units_sold,
+                'revenue' => (float) $row->revenue,
+            ])
+            ->values()
+            ->all();
+
+        $byStatus = DB::table('orders')
+            ->select(
+                'status',
+                DB::raw('COUNT(*) as order_count'),
+                DB::raw('COALESCE(SUM(total_amount), 0) as revenue')
+            )
+            ->groupBy('status')
+            ->orderByDesc('order_count')
+            ->get()
+            ->map(fn ($row): array => [
+                'status' => (string) $row->status,
+                'order_count' => (int) $row->order_count,
+                'revenue' => (float) $row->revenue,
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'summary' => [
+                'total_orders' => $totalOrders,
+                'total_revenue' => $paidRevenue,
+                'pending_orders' => $pendingOrders,
+                'avg_order_value' => $avgOrderValue,
+                'total_skus' => Product::query()->count(),
+                'low_stock_skus' => Product::query()->where('stock', '<=', 5)->count(),
+                'customer_count' => User::query()->where('role', '!=', 'admin')->count(),
+                'region_count' => $performances->pluck('region')->unique()->count(),
+            ],
+            'by_category' => $byCategory,
+            'top_products' => $topProducts,
+            'by_status' => $byStatus,
+        ];
     }
 
     /**
@@ -312,13 +522,16 @@ class MsiController extends Controller
     }
 
     /**
-     * Kuis & Evaluasi Interaktif (10 Soal Asli BAB II)
+     * Kuis & Evaluasi Interaktif (Multi-Bab: Bab II, VII, VIII, IX, X, XII, XIII)
      */
-    public function quiz()
+    public function quiz(Request $request)
     {
-        $questions = $this->getQuizQuestions();
+        $chapter = ModuleQuizBank::normalizeChapter($request->query('bab'));
+        $chapterMeta = ModuleQuizBank::chapterMeta($chapter);
+        $chapters = ModuleQuizBank::chapters();
+        $questions = ModuleQuizBank::questions($chapter);
 
-        return Inertia::render('Modules/Quiz', compact('questions'));
+        return Inertia::render('Modules/Quiz', compact('questions', 'chapter', 'chapterMeta', 'chapters'));
     }
 
     /**
@@ -326,7 +539,9 @@ class MsiController extends Controller
      */
     public function quizSubmit(Request $request)
     {
-        $questions = $this->getQuizQuestions();
+        $chapter = ModuleQuizBank::normalizeChapter($request->input('bab'));
+        $chapterMeta = ModuleQuizBank::chapterMeta($chapter);
+        $questions = ModuleQuizBank::questions($chapter);
         $userAnswers = $request->input('answers', []);
 
         $score = 0;
@@ -353,137 +568,11 @@ class MsiController extends Controller
             ];
         }
 
-        $percentage = round(($score / $total) * 100);
+        $percentage = $total > 0 ? round(($score / $total) * 100) : 0;
 
-        return Inertia::render('Modules/QuizResult', compact('score', 'total', 'percentage', 'details') + ['subject' => 'Evaluasi kuis Bab II']);
-    }
-
-    /**
-     * Kumpulan 10 Soal Asli Dokumen BAB II
-     */
-    private function getQuizQuestions(): array
-    {
-        return [
-            [
-                'id' => 1,
-                'question' => '.......... adalah sekumpulan informasi yang memproses transaksi data dalam sistem basis data yang memantau program transaksi.',
-                'options' => [
-                    'a' => 'Operating System',
-                    'b' => 'Decision Support System',
-                    'c' => 'Transaction Processing System',
-                    'd' => 'Tidak ada jawaban',
-                ],
-                'correct' => 'c',
-                'explanation' => 'Transaction Processing System (TPS) adalah sistem yang bertujuan mencatat, memvalidasi proses, dan menyimpan transaksi yang terjadi di area fungsi bisnis.',
-            ],
-            [
-                'id' => 2,
-                'question' => '____ memproses beberapa transaksi secara bersamaan.',
-                'options' => [
-                    'a' => 'Batch Processing',
-                    'b' => 'Real-time Processing',
-                    'c' => 'Distributed System',
-                    'd' => 'Tidak ada jawaban',
-                ],
-                'correct' => 'a',
-                'explanation' => 'Dalam Batch Processing, transaksi diakumulasikan dari waktu ke waktu dan diproses secara bersamaan (berkala).',
-            ],
-            [
-                'id' => 3,
-                'question' => 'Dalam ___ hasil setiap transaksi tidak segera tersedia.',
-                'options' => [
-                    'a' => 'Batch processing',
-                    'b' => 'Real-time processing',
-                    'c' => 'Transaction processing',
-                    'd' => 'Tidak ada jawaban',
-                ],
-                'correct' => 'a',
-                'explanation' => 'Berbeda dengan Online/Real-time yang langsung diproses tanpa jeda waktu, pada Batch Processing hasil transaksi tidak segera tersedia karena diakumulasikan dahulu.',
-            ],
-            [
-                'id' => 4,
-                'question' => '___ dirancang untuk memecahkan masalah yang kompleks dengan penalaran melalui pengetahuan.',
-                'options' => [
-                    'a' => 'Computer systems',
-                    'b' => 'Expert systems',
-                    'c' => 'Operating systems',
-                    'd' => 'Transaction processing systems',
-                ],
-                'correct' => 'b',
-                'explanation' => 'Expert Systems (Sistem Pakar) adalah sistem berbasis pengetahuan yang meniru penalaran dan keterampilan pemecahan masalah dari seorang pakar manusia.',
-            ],
-            [
-                'id' => 5,
-                'question' => 'Sistem pakar dibagi menjadi ___ Subsistem (komponen utama).',
-                'options' => [
-                    'a' => 'Satu',
-                    'b' => 'Dua',
-                    'c' => 'Tiga',
-                    'd' => 'Empat',
-                ],
-                'correct' => 'c',
-                'explanation' => 'Sistem pakar memiliki 3 komponen utama: Basis Pengetahuan (Knowledge Base), Mesin Inferensi (Inference Engine), dan Antarmuka Pengguna (User Interface).',
-            ],
-            [
-                'id' => 6,
-                'question' => 'Expert system adalah jenis sistem informasi yang memfasilitasi komputer untuk membuat ___ seperti seorang ahli.',
-                'options' => [
-                    'a' => 'Analisis sistem',
-                    'b' => 'Saran dan fungsi',
-                    'c' => 'Hasil analisis',
-                    'd' => 'Tak satu pun dari yang disebutkan di atas',
-                ],
-                'correct' => 'b',
-                'explanation' => 'Expert system memfasilitasi komputer untuk memberikan saran, penalaran, dan fungsi pemecahan masalah selayaknya pakar manusia.',
-            ],
-            [
-                'id' => 7,
-                'question' => '___ adalah aplikasi komputer yang digunakan untuk mendukung penentuan, keputusan, dan tindakan dalam suatu organisasi atau bisnis.',
-                'options' => [
-                    'a' => 'Decision Support System (DSS)',
-                    'b' => 'Transaction Process System',
-                    'c' => 'Executive Support System',
-                    'd' => 'Tak satu pun dari yang disebutkan di atas',
-                ],
-                'correct' => 'a',
-                'explanation' => 'Decision Support System (DSS) memfasilitasi keputusan semi-terstruktur dengan menyediakan data, alat, pemodelan, dan pencarian tujuan (goal seeking).',
-            ],
-            [
-                'id' => 8,
-                'question' => 'Sebuah Decision Support System (DSS) adalah sebuah aplikasi untuk sistem informasi yang membantu dalam ___.',
-                'options' => [
-                    'a' => 'Desain sistem',
-                    'b' => 'Analisis sistem',
-                    'c' => 'Pengambilan keputusan',
-                    'd' => 'Semua yang disebutkan di atas',
-                ],
-                'correct' => 'c',
-                'explanation' => 'Fungsi primer DSS secara spesifik adalah membantu para manajer dalam proses pengambilan keputusan (decision making).',
-            ],
-            [
-                'id' => 9,
-                'question' => 'Keputusan di mana pembuat keputusan harus memberikan penilaian, evaluasi, dan wawasan ke dalam definisi masalah akan dicirikan sebagai:',
-                'options' => [
-                    'a' => 'structured.',
-                    'b' => 'semistructured.',
-                    'c' => 'unstructured.',
-                    'd' => 'Tak satu pun dari yang disebutkan di atas',
-                ],
-                'correct' => 'c',
-                'explanation' => 'Unstructured decisions (keputusan tidak terstruktur) memerlukan penilaian, evaluasi subjektif, dan wawasan baru karena tanggapan standarnya belum tersedia.',
-            ],
-            [
-                'id' => 10,
-                'question' => 'Jenis keputusan yang dapat dibuat dengan mengikuti prosedur tertentu disebut ………. decision.',
-                'options' => [
-                    'a' => 'structured',
-                    'b' => 'unstructured',
-                    'c' => 'semistructured',
-                    'd' => 'procedural',
-                ],
-                'correct' => 'a',
-                'explanation' => 'Structured decisions (keputusan terstruktur/terprogram) adalah keputusan rutin dan berulang yang dapat diselesaikan mengikuti aturan/prosedur baku yang pasti.',
-            ],
-        ];
+        return Inertia::render('Modules/QuizResult', compact('score', 'total', 'percentage', 'details') + [
+            'subject' => $chapterMeta['subject'],
+            'chapter' => $chapter,
+        ]);
     }
 }

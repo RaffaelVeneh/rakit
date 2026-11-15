@@ -24,9 +24,17 @@ import { count, isoDate, pad } from '@/lib/format';
 const WEIGHT = '1 poin';
 const PASS_MARK = '70%';
 
-export default function Quiz({ questions = [] }) {
+export default function Quiz({
+    questions = [],
+    chapter = 'bab2',
+    chapterMeta = { code: 'Bab II', title: 'Tipe Sistem Informasi (TPS, OAS, MIS, ISS)' },
+    chapters = [],
+}) {
     const total = questions.length;
-    const { data, setData, post, processing, errors } = useForm({ answers: {} });
+    const { data, setData, post, processing, errors } = useForm({
+        bab: chapter,
+        answers: {},
+    });
 
     const answers = data.answers || {};
     const answered = questions.filter((question) => answers[question.id] !== undefined).length;
@@ -46,8 +54,8 @@ export default function Quiz({ questions = [] }) {
     };
 
     return (
-        <ModuleLayout sheet="Evaluasi kuis">
-            <Head title="Evaluasi kuis Bab II — RAKIT" />
+        <ModuleLayout sheet={`Evaluasi kuis · ${chapterMeta.code}`}>
+            <Head title={`Evaluasi kuis ${chapterMeta.code} — RAKIT`} />
 
             {/* ── What is examined, and how it is scored ───────────────────── */}
             <PageBand
@@ -55,17 +63,38 @@ export default function Quiz({ questions = [] }) {
                 path={[
                     { label: 'Piramida', href: '/pyramid' },
                     { label: 'Modul rujukan' },
-                    { label: 'Lembar evaluasi · Bab II' },
+                    { label: `Lembar evaluasi · ${chapterMeta.code}` },
                 ]}
-                title="Uji pemahaman tipe sistem informasi"
-                meta={`${count(total)} pertanyaan pilihan ganda tentang TPS, OAS, MIS, DSS, dan sistem pakar. Setiap jawaban benar bernilai satu poin; ambang kelulusan ${PASS_MARK}.`}
+                title={`Uji pemahaman — ${chapterMeta.title}`}
+                meta={`${count(total)} pertanyaan pilihan ganda berdasarkan modul ${chapterMeta.code}. Setiap jawaban benar bernilai satu poin; ambang kelulusan ${PASS_MARK}.`}
             >
+                {chapters.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-1.5 border-b border-line pb-4">
+                        {chapters.map((item) => {
+                            const active = item.key === chapter;
+                            return (
+                                <Link
+                                    key={item.key}
+                                    href={`/quiz?bab=${item.key}`}
+                                    className={`border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.12em] transition-colors ${
+                                        active
+                                            ? 'border-lit bg-plot-2 text-lit'
+                                            : 'border-line-2 text-chalk-2 hover:border-chalk-2 hover:text-chalk'
+                                    }`}
+                                >
+                                    {item.code}
+                                </Link>
+                            );
+                        })}
+                    </div>
+                )}
+
                 <div className="mt-6 grid gap-8 lg:grid-cols-12 lg:gap-12">
                     <div className="lg:col-span-5">
                         <TitleBlock
                             tone="plot"
                             cells={[
-                                { label: 'Lembar', value: 'Evaluasi · Bab II' },
+                                { label: 'Lembar', value: `Evaluasi · ${chapterMeta.code}` },
                                 { label: 'Revisi', value: isoDate() },
                                 { label: 'Penilai', value: 'Pengendali' },
                             ]}

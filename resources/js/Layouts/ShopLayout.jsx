@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import { ChevronDown, Menu, Search, ShoppingBag, X } from 'lucide-react';
 import { BrandMark, BRAND } from '@/Components/Brand';
+import ChatbotWidget from '@/Components/ChatbotWidget';
 import { Field } from '@/Components/Controls';
 import { SheetWipe } from '@/Components/Sheet';
 import { MotionToggle, ThemeToggle } from '@/Components/ThemeToggle';
@@ -492,6 +493,7 @@ export default function ShopLayout({ children, newsletter = true, registerCount 
 
             {newsletter && <SubscriptionStrip />}
             <Colophon categories={categories || []} registerCount={registerTotal} />
+            <ChatbotWidget />
         </div>
     );
 }

@@ -59,6 +59,78 @@ const SUBJECTS = {
         quiz: { href: '/software#latihan', action: 'Ulangi kuis Bab IV' },
         retry: 'lalu ulangi kuis Bab IV untuk memperbaiki skor.',
     },
+    'Evaluasi kuis Bab VII': {
+        sheet: 'Evaluasi · Bab VII',
+        title: 'Hasil evaluasi people dalam sistem informasi',
+        crumbs: [
+            { label: 'Piramida', href: '/pyramid' },
+            { label: 'Lembar evaluasi' },
+            { label: 'Hasil · Bab VII' },
+        ],
+        module: { href: '/pyramid', action: 'Kembali ke ringkasan' },
+        quiz: { href: '/quiz?bab=bab7', action: 'Ulangi kuis Bab VII' },
+        retry: 'lalu ulangi kuis Bab VII untuk memperbaiki skor.',
+    },
+    'Evaluasi kuis Bab VIII': {
+        sheet: 'Evaluasi · Bab VIII',
+        title: 'Hasil evaluasi transaction processing systems',
+        crumbs: [
+            { label: 'TPS', href: '/tps' },
+            { label: 'Lembar evaluasi' },
+            { label: 'Hasil · Bab VIII' },
+        ],
+        module: { href: '/tps', action: 'Kembali ke simulator TPS' },
+        quiz: { href: '/quiz?bab=bab8', action: 'Ulangi kuis Bab VIII' },
+        retry: 'lalu ulangi kuis Bab VIII untuk memperbaiki skor.',
+    },
+    'Evaluasi kuis Bab IX': {
+        sheet: 'Evaluasi · Bab IX',
+        title: 'Hasil evaluasi office automation system',
+        crumbs: [
+            { label: 'OAS', href: '/oas' },
+            { label: 'Lembar evaluasi' },
+            { label: 'Hasil · Bab IX' },
+        ],
+        module: { href: '/oas', action: 'Kembali ke modul OAS' },
+        quiz: { href: '/quiz?bab=bab9', action: 'Ulangi kuis Bab IX' },
+        retry: 'lalu ulangi kuis Bab IX untuk memperbaiki skor.',
+    },
+    'Evaluasi kuis Bab X': {
+        sheet: 'Evaluasi · Bab X',
+        title: 'Hasil evaluasi knowledge management system',
+        crumbs: [
+            { label: 'KMS', href: '/kms' },
+            { label: 'Lembar evaluasi' },
+            { label: 'Hasil · Bab X' },
+        ],
+        module: { href: '/kms', action: 'Kembali ke modul KMS' },
+        quiz: { href: '/quiz?bab=bab10', action: 'Ulangi kuis Bab X' },
+        retry: 'lalu ulangi kuis Bab X untuk memperbaiki skor.',
+    },
+    'Evaluasi kuis Bab XII': {
+        sheet: 'Evaluasi · Bab XII',
+        title: 'Hasil evaluasi executive information system',
+        crumbs: [
+            { label: 'ISS', href: '/iss' },
+            { label: 'Lembar evaluasi' },
+            { label: 'Hasil · Bab XII' },
+        ],
+        module: { href: '/iss', action: 'Kembali ke modul ISS/EIS' },
+        quiz: { href: '/quiz?bab=bab12', action: 'Ulangi kuis Bab XII' },
+        retry: 'lalu ulangi kuis Bab XII untuk memperbaiki skor.',
+    },
+    'Evaluasi kuis Bab XIII': {
+        sheet: 'Evaluasi · Bab XIII',
+        title: 'Hasil evaluasi expert system',
+        crumbs: [
+            { label: 'ISS', href: '/iss' },
+            { label: 'Lembar evaluasi' },
+            { label: 'Hasil · Bab XIII' },
+        ],
+        module: { href: '/iss', action: 'Kembali ke modul ISS/ES' },
+        quiz: { href: '/quiz?bab=bab13', action: 'Ulangi kuis Bab XIII' },
+        retry: 'lalu ulangi kuis Bab XIII untuk memperbaiki skor.',
+    },
 };
 
 /** A subject the page has not been taught still gets a band and a way back. */

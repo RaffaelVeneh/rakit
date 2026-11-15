@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import {
     BookOpen,
+    CalendarClock,
+    CheckCircle2,
+    Circle,
     FileText,
     Layers,
     Mail,
@@ -49,6 +52,7 @@ const OAS_COMPONENTS = [
 
 const TABS = [
     { key: 'memos', label: 'Memo & dokumen' },
+    { key: 'tasks', label: 'Tugas & tenggat' },
     { key: 'conferencing', label: 'Telekonferensi' },
     { key: 'imaging', label: 'Pencitraan / OCR' },
 ];
@@ -89,12 +93,36 @@ const FIELD_RULES = {
     content: 'Isi dokumen tidak boleh kosong. Tuliskan isi memo, lalu kirim lagi.',
 };
 
-export default function Oas({ memos = [] }) {
+export default function Oas({ memos = [], tasks = [] }) {
     const [activeTab, setActiveTab] = useState('memos');
     const [ocrInput, setOcrInput] = useState(OCR_SAMPLE);
     const [ocrResult, setOcrResult] = useState('');
 
     const rows = memos || [];
+    const taskRows = tasks || [];
+
+    const taskForm = useForm({
+        title: '',
+        assignee: '',
+        department: 'Operasional',
+        due_date: new Date().toISOString().slice(0, 10),
+        priority: 'normal',
+        notes: '',
+    });
+
+    const submitTask = (event) => {
+        event.preventDefault();
+        taskForm.post('/oas/tasks', {
+            preserveScroll: true,
+            onSuccess: () => taskForm.reset('title', 'assignee', 'notes'),
+            onError: () =>
+                notifyError('Tugas ditolak', 'Lengkapi judul, penanggung jawab, dan tenggat.'),
+        });
+    };
+
+    const toggleTask = (taskId) => {
+        router.patch(`/oas/tasks/${taskId}/toggle`, {}, { preserveScroll: true });
+    };
 
     const { data, setData, post, processing, errors, reset } = useForm({
         title: '',
@@ -481,6 +509,194 @@ export default function Oas({ memos = [] }) {
                                     </div>
                                 </Plate>
                             ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Tab 2: task & deadline scheduler (Bab IX) ────────────── */}
+                {activeTab === 'tasks' && (
+                    <div
+                        id="oas-panel-tasks"
+                        role="tabpanel"
+                        aria-labelledby="oas-tab-tasks"
+                        className="mt-8 grid items-start gap-8 lg:grid-cols-12"
+                    >
+                        <div className="lg:col-span-5">
+                            <SectionHead title="Jadwalkan tugas baru" meta="Task & deadline (Bab IX)" />
+                            <ZoneFrame className="mt-4 border-line-2 bg-plot-2">
+                                <SheetHead
+                                    tone="plot"
+                                    label="Formulir agenda operasional"
+                                    readouts={[{ label: 'Tujuan', value: 'POST /oas/tasks' }]}
+                                />
+                                <form onSubmit={submitTask} className="space-y-3 px-4 py-4">
+                                    <LabelledField
+                                        label="Nama tugas"
+                                        error={taskForm.errors.title}
+                                    >
+                                        <input
+                                            type="text"
+                                            value={taskForm.data.title}
+                                            onChange={(e) =>
+                                                taskForm.setData('title', e.target.value)
+                                            }
+                                            placeholder="Mis. Verifikasi stok motherboard B650"
+                                            className="field text-[13px]"
+                                        />
+                                    </LabelledField>
+
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <LabelledField
+                                            label="Penanggung jawab"
+                                            error={taskForm.errors.assignee}
+                                        >
+                                            <input
+                                                type="text"
+                                                value={taskForm.data.assignee}
+                                                onChange={(e) =>
+                                                    taskForm.setData('assignee', e.target.value)
+                                                }
+                                                placeholder="Staf Gudang"
+                                                className="field text-[13px]"
+                                            />
+                                        </LabelledField>
+
+                                        <LabelledField label="Departemen">
+                                            <input
+                                                type="text"
+                                                value={taskForm.data.department}
+                                                onChange={(e) =>
+                                                    taskForm.setData('department', e.target.value)
+                                                }
+                                                className="field text-[13px]"
+                                            />
+                                        </LabelledField>
+                                    </div>
+
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <LabelledField
+                                            label="Tenggat waktu"
+                                            error={taskForm.errors.due_date}
+                                        >
+                                            <input
+                                                type="date"
+                                                value={taskForm.data.due_date}
+                                                onChange={(e) =>
+                                                    taskForm.setData('due_date', e.target.value)
+                                                }
+                                                className="field text-[13px]"
+                                            />
+                                        </LabelledField>
+
+                                        <LabelledField label="Prioritas">
+                                            <Select
+                                                value={taskForm.data.priority}
+                                                onChange={(e) =>
+                                                    taskForm.setData('priority', e.target.value)
+                                                }
+                                            >
+                                                <option value="normal">Normal</option>
+                                                <option value="urgent">Mendesak</option>
+                                            </Select>
+                                        </LabelledField>
+                                    </div>
+
+                                    <LabelledField label="Catatan koordinasi">
+                                        <textarea
+                                            rows={2}
+                                            value={taskForm.data.notes}
+                                            onChange={(e) =>
+                                                taskForm.setData('notes', e.target.value)
+                                            }
+                                            className="field text-[13px]"
+                                        />
+                                    </LabelledField>
+
+                                    <Stamp type="submit" disabled={taskForm.processing}>
+                                        <CalendarClock className="h-3.5 w-3.5" />
+                                        Simpan jadwal tugas
+                                    </Stamp>
+                                </form>
+                            </ZoneFrame>
+                        </div>
+
+                        <div className="lg:col-span-7">
+                            <SectionHead
+                                title="Daftar tugas & tenggat OAS"
+                                meta={`${count(taskRows.length)} agenda tercatat`}
+                            />
+                            <div className="register mt-4 divide-y divide-line">
+                                {taskRows.map((task) => {
+                                    const done = task.status === 'done';
+                                    return (
+                                        <div
+                                            key={task.id}
+                                            className="flex flex-wrap items-start justify-between gap-4 px-4 py-3.5"
+                                        >
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <StatusLamp
+                                                        state={
+                                                            done
+                                                                ? {
+                                                                      tone: 'chalk',
+                                                                      lamp: 'unlit',
+                                                                      label: 'Selesai',
+                                                                  }
+                                                                : task.priority === 'urgent'
+                                                                  ? {
+                                                                        tone: 'lit-red',
+                                                                        lamp: 'lit',
+                                                                        label: 'Mendesak',
+                                                                    }
+                                                                  : {
+                                                                        tone: 'lit',
+                                                                        lamp: 'half',
+                                                                        label: 'Aktif',
+                                                                    }
+                                                        }
+                                                    />
+                                                    <span className="font-mono text-[10px] text-chalk-2">
+                                                        Tenggat: {String(task.due_date || '').slice(0, 10)} ·{' '}
+                                                        {task.department}
+                                                    </span>
+                                                </div>
+                                                <h3
+                                                    className={`mt-1.5 text-[13.5px] font-medium ${
+                                                        done
+                                                            ? 'line-through text-chalk-3'
+                                                            : 'text-chalk'
+                                                    }`}
+                                                >
+                                                    {task.title}
+                                                </h3>
+                                                <p className="mt-0.5 text-[12px] text-chalk-2">
+                                                    PIC: {task.assignee}
+                                                    {task.notes ? ` — ${task.notes}` : ''}
+                                                </p>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleTask(task.id)}
+                                                className="inline-flex items-center gap-1.5 border border-line-2 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-chalk hover:border-lit hover:text-lit"
+                                            >
+                                                {done ? (
+                                                    <>
+                                                        <Circle className="h-3 w-3" />
+                                                        Buka kembali
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <CheckCircle2 className="h-3 w-3 text-lit" />
+                                                        Tandai selesai
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     </div>
                 )}
