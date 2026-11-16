@@ -13,9 +13,11 @@ class Product extends Model
     protected $fillable = [
         'category_id',
         'brand_id',
+        'component_type',
         'name',
         'slug',
         'description',
+        'specs',
         'price',
         'stock',
         'image',
@@ -23,6 +25,7 @@ class Product extends Model
     ];
 
     protected $casts = [
+        'specs' => 'array',
         'price' => 'decimal:2',
         'stock' => 'integer',
         'is_featured' => 'boolean',

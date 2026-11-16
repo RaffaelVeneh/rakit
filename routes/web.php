@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HardwareController;
 use App\Http\Controllers\KmsController;
 use App\Http\Controllers\MsiController;
+use App\Http\Controllers\RakitController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\SoftwareController;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,10 @@ use Illuminate\Support\Facades\Route;
 // Browsing is public. Buying is not.
 Route::get('/', [ShopController::class, 'index'])->name('shop.index');
 Route::get('/product/{product:slug}', [ShopController::class, 'product'])->name('shop.product');
+
+// Interactive 3D PC Builder ("Rakit PC 3D")
+Route::get('/rakit', [RakitController::class, 'index'])->name('rakit.index');
+Route::post('/rakit/validate', [RakitController::class, 'validateSelection'])->name('rakit.validate');
 
 /*
  * Everything from the bag onward belongs to a named person, so it says so in the
@@ -30,6 +35,9 @@ Route::get('/product/{product:slug}', [ShopController::class, 'product'])->name(
  * going, so they arrive there once they are through.
  */
 Route::middleware('auth')->group(function () {
+    // PC Builder -> Cart
+    Route::post('/rakit/cart', [RakitController::class, 'addBuildToCart'])->name('rakit.cart');
+
     // Shopping Cart
     Route::get('/cart', [ShopController::class, 'cart'])->name('shop.cart');
     Route::post('/cart/add', [ShopController::class, 'addToCart'])->name('shop.cart.add');

@@ -101,11 +101,13 @@ class AdminController extends Controller
         $validated = $request->validate([
             'category_id' => 'required|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
+            'component_type' => 'nullable|string|in:case,motherboard,cpu,ram,gpu,cooler,storage,psu,fan',
             'name' => 'required|string|max:200',
             'price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'image' => 'nullable|url',
             'description' => 'nullable|string',
+            'specs' => 'nullable|array',
             'is_featured' => 'nullable|boolean',
         ]);
 
@@ -114,12 +116,16 @@ class AdminController extends Controller
         Product::create([
             'category_id' => $validated['category_id'],
             'brand_id' => $validated['brand_id'] ?? null,
+            'component_type' => $validated['component_type'] ?: null,
             'name' => $validated['name'],
             'slug' => $slug,
             'price' => $validated['price'],
             'stock' => $validated['stock'],
-            // No stand-in photograph: an empty image stays empty and the sheet draws\n            // a hatched placeholder instead of shipping someone else's picture.\n            'image' => $validated['image'] ?: null,
+            // No stand-in photograph: an empty image stays empty and the sheet draws
+            // a hatched placeholder instead of shipping someone else's picture.
+            'image' => $validated['image'] ?: null,
             'description' => $validated['description'] ?? null,
+            'specs' => $validated['specs'] ?? null,
             'is_featured' => $request->boolean('is_featured'),
         ]);
 
@@ -134,22 +140,28 @@ class AdminController extends Controller
         $validated = $request->validate([
             'category_id' => 'required|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
+            'component_type' => 'nullable|string|in:case,motherboard,cpu,ram,gpu,cooler,storage,psu,fan',
             'name' => 'required|string|max:200',
             'price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'image' => 'nullable|string',
             'description' => 'nullable|string',
+            'specs' => 'nullable|array',
             'is_featured' => 'nullable|boolean',
         ]);
 
         $product->update([
             'category_id' => $validated['category_id'],
             'brand_id' => $validated['brand_id'] ?? null,
+            'component_type' => array_key_exists('component_type', $validated)
+                ? ($validated['component_type'] ?: null)
+                : $product->component_type,
             'name' => $validated['name'],
             'price' => $validated['price'],
             'stock' => $validated['stock'],
             'image' => $validated['image'] ?: $product->image,
             'description' => $validated['description'] ?? null,
+            'specs' => array_key_exists('specs', $validated) ? $validated['specs'] : $product->specs,
             'is_featured' => $request->boolean('is_featured'),
         ]);
 

@@ -158,9 +158,12 @@ export default function Index({
                                 lembar ini dibaca langsung dari basis data toko.
                             </p>
                             <div className="mt-4 flex flex-wrap items-center gap-2">
+                                <Link href="/rakit" prefetch className="stamp">
+                                    Rakit PC 3D Interaktif
+                                    <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+                                </Link>
                                 <a href="#register" className="stamp-2">
                                     Buka register
-                                    <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
                                 </a>
                                 <a href="#piringan" className="stamp-2">
                                     Lihat piringan

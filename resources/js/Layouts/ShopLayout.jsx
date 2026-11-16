@@ -181,6 +181,17 @@ function SheetHeader({ categories = [], cartCount = 0, url = '', onSearch }) {
                                 {category.name}
                             </Link>
                         ))}
+                        <Link
+                            href="/rakit"
+                            prefetch
+                            className={`ml-1 border-b-2 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-[0.12em] transition-colors ${
+                                path === '/rakit'
+                                    ? 'border-cyan text-cyan'
+                                    : 'border-transparent text-cyan hover:border-cyan/60'
+                            }`}
+                        >
+                            Rakit PC 3D
+                        </Link>
                     </nav>
                 </div>
 
@@ -242,6 +253,15 @@ function SheetHeader({ categories = [], cartCount = 0, url = '', onSearch }) {
                         />
                     </form>
                     <nav className="grid grid-cols-2 gap-px bg-rule" aria-label="Kelompok produk">
+                        <Link
+                            href="/rakit"
+                            prefetch
+                            onClick={() => setDrawer(false)}
+                            className="col-span-2 flex items-center justify-between bg-cyan/10 px-3 py-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-cyan"
+                        >
+                            <span>Rakit PC 3D Interaktif</span>
+                            <span>→</span>
+                        </Link>
                         <Link
                             href="/"
                             onClick={() => setDrawer(false)}

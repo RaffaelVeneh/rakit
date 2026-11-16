@@ -1,5 +1,6 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react';
-import { ArrowRight, Crosshair } from 'lucide-react';
+import { Link } from '@inertiajs/react';
+import { ArrowRight, Cpu, Crosshair } from 'lucide-react';
 import { BrandMark } from '@/Components/Brand';
 import { PlatePhoto } from '@/Components/PlatePhoto';
 import { partNo, position } from '@/lib/catalog';
@@ -298,9 +299,13 @@ export default function NeonHero({ product = null, register = {} }) {
                     </p>
 
                     <div className="kilau-actions kilau-rise kilau-rise--4">
-                        <a ref={primaryRef} href="#register" className="kilau-cta">
-                            Masuk ke register
+                        <Link ref={primaryRef} href="/rakit" prefetch className="kilau-cta">
+                            <Cpu className="h-4 w-4" strokeWidth={1.75} />
+                            Rakit PC 3D
                             <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
+                        </Link>
+                        <a href="#register" className="kilau-cta-2">
+                            Masuk ke register
                         </a>
                         <a href="#meja-gambar" className="kilau-cta-2">
                             <Crosshair className="h-4 w-4" strokeWidth={1.5} />

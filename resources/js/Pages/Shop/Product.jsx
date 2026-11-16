@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, ArrowRight, Box, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Box, Cpu, Image as ImageIcon } from 'lucide-react';
 import ShopLayout from '@/Layouts/ShopLayout';
 import { Callout, Dim, PageBand, Plate, SectionHead } from '@/Components/Sheet';
 import { QtyStepper, Stamp, StatusLamp } from '@/Components/Controls';
@@ -10,6 +10,7 @@ import TechScene from '@/Components/TechScene';
 import { partNo, position, stockState } from '@/lib/catalog';
 import { atWidth, srcSet } from '@/lib/images';
 import { amount, count, rupiah } from '@/lib/format';
+import { formatSpecBadges, slotLabel } from '@/lib/pcCompatibility';
 
 /**
  * The part sheet: one position out of the register, drawn large, with the same
@@ -28,6 +29,7 @@ export default function Product({ product, relatedProducts = [] }) {
 
     const condition = stockState(product?.stock);
     const out = Number(product?.stock) <= 0;
+    const specBadges = formatSpecBadges(product?.component_type, product?.specs);
 
     const addRelated = (related) => {
         setBusyId(related.id);
@@ -195,7 +197,28 @@ export default function Product({ product, relatedProducts = [] }) {
                                 <Callout k="Merk">{product.brand?.name || '—'}</Callout>
                                 <Callout k="Harga satuan">{rupiah(product.price)}</Callout>
                                 <Callout k="Di gudang">{count(product.stock)} unit</Callout>
+                                {product.component_type && (
+                                    <Callout k="Slot Rakit 3D">{slotLabel(product.component_type)}</Callout>
+                                )}
                             </div>
+
+                            {specBadges.length > 0 && (
+                                <div className="border-t border-rule px-4 py-3">
+                                    <span className="block font-mono text-[9px] uppercase tracking-[0.16em] text-ink-3">
+                                        Spesifikasi Teknis Komponen
+                                    </span>
+                                    <div className="mt-2 flex flex-wrap gap-1.5">
+                                        {specBadges.map((badge) => (
+                                            <span
+                                                key={badge}
+                                                className="border border-rule bg-sheet px-2 py-0.5 font-mono text-[10px] text-ink-2"
+                                            >
+                                                {badge}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="border-t border-ink px-4 py-4">
                                 {out ? (
@@ -260,6 +283,17 @@ export default function Product({ product, relatedProducts = [] }) {
                                         {signedIn && (
                                             <Link href="/cart" className="stamp-2 mt-2 w-full">
                                                 Periksa tas & checkout
+                                            </Link>
+                                        )}
+
+                                        {product.component_type && (
+                                            <Link
+                                                href={`/rakit?part=${encodeURIComponent(product.slug)}`}
+                                                prefetch
+                                                className="stamp-2 mt-2 w-full"
+                                            >
+                                                <Cpu className="h-3.5 w-3.5 text-cyan" strokeWidth={1.6} />
+                                                Pasang di Rakit 3D
                                             </Link>
                                         )}
                                     </form>
